@@ -51,6 +51,15 @@ public class UserService {
 				.block();
 	}
 
+	public void updateCurrentUserProfile(UserDto user) {
+		this.webClient.put()
+				.uri(AUTH_SERVER_URI + "/api/users/me")
+				.bodyValue(user)
+				.retrieve()
+				.toBodilessEntity()
+				.block();
+	}
+
 	@Data
 	public static class UserDto {
 		private Long id;

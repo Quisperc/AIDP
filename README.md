@@ -344,6 +344,26 @@ public RegisteredClientRepository registeredClientRepository() {
 2.  **普通用户登录 (User)**: 
     *   访问 `http://127.0.0.1:8081/users`
     *   会看到 **403 Forbidden** 错误（UI 层拦截）。
+    *   访问 `http://127.0.0.1:8081/users`
+    *   会看到 **403 Forbidden** 错误（UI 层拦截）。
     *   即使直接调用 API，也会被 Auth Server 拦截。
+
+---
+
+## 🛠️ 用户自助服务 (Phase 4)
+
+支持用户修改自己的**用户名**和**密码**。
+
+### 1. 核心逻辑 (`PUT /api/users/me`)
+为了安全起见，我们增加了一个专门的 API `me`，而不是复用 `PUT /api/users/{id}`。
+*   Auth Server 会自动从 Token 中获取当前用户的 `username`。
+*   用户只能修改**自己的**信息。
+*   API 层面**严格忽略**了 `role` 和 `enabled` 字段的修改请求，防止普通用户提权。
+
+### 2. 页面交互
+*   **入口**: 访问 `/profile` 页面，或者从“用户管理”页面的右上角进入（仅限管理员）。
+*   **修改密码**: 留空则不修改。
+*   **修改用户名**: 一旦修改成功，系统会强制您**重新登录**（因为 access token 中的 `sub` 字段失效了）。
+
 
 

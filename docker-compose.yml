@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-strongpassword}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       # - ./init-scripts:/docker-entrypoint-initdb.d  # 可选：初始化脚本目录
     healthcheck:
       # 增加 -d 参数，显式指定连接 authdb 数据库

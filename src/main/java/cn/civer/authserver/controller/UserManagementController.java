@@ -62,4 +62,25 @@ public class UserManagementController {
 			return ResponseEntity.ok().<Void>build();
 		}).orElse(ResponseEntity.notFound().build());
 	}
+
+	@PutMapping("/me")
+	@PreAuthorize("isAuthenticated()")
+	public ResponseEntity<User> updateCurrentUser(
+			@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt principal,
+			@RequestBody User updatedUser) {
+		// Principal in Resource Server with JWT is typically Jwt
+		String username = principal.getSubject(); // "sub" claim
+		return userRepository.findByUsername(username).map(user -> {
+			// Allow changing username (requires re-login usually)
+			if (updatedUser.getUsername() != null && !updatedUser.getUsername().isEmpty()) {
+				user.setUsername(updatedUser.getUsername());
+			}
+			// Allow changing password
+			if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+				user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+			}
+			// DO NOT update Role or Enabled status here for security
+			return ResponseEntity.ok(userRepository.save(user));
+		}).orElse(ResponseEntity.notFound().build());
+	}
 }

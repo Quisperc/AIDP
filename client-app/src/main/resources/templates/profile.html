@@ -7,61 +7,103 @@
 		body {
 			font-family: sans-serif;
 			margin: 40px;
-			text-align: center;
+			max-width: 600px;
+			margin: 0 auto;
 		}
 
 		.card {
 			border: 1px solid #ccc;
 			padding: 20px;
 			border-radius: 8px;
-			max-width: 500px;
-			margin: 0 auto;
 			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 		}
 
-		.info-row {
-			margin: 10px 0;
-			border-bottom: 1px solid #eee;
-			padding-bottom: 5px;
-			text-align: left;
+		.form-group {
+			margin-bottom: 15px;
 		}
 
-		.label {
+		label {
+			display: block;
+			margin-bottom: 5px;
 			font-weight: bold;
-			width: 100px;
-			display: inline-block;
 		}
 
-		.btn {
-			display: inline-block;
-			padding: 10px 20px;
-			background-color: #6c757d;
+		input {
+			width: 100%;
+			padding: 8px;
+			box-sizing: border-box;
+		}
+
+		button {
+			padding: 10px 15px;
+			background-color: #2196F3;
 			color: white;
+			border: none;
+			cursor: pointer;
+			border-radius: 4px;
+		}
+
+		button:hover {
+			background-color: #0b7dda;
+		}
+
+		.nav-links {
+			margin-bottom: 20px;
+		}
+
+		.nav-links a {
+			margin-right: 15px;
+			color: #333;
 			text-decoration: none;
-			border-radius: 5px;
-			margin-top: 20px;
+		}
+
+		.alert {
+			color: #856404;
+			background-color: #fff3cd;
+			padding: 10px;
+			border-radius: 4px;
+			margin-bottom: 15px;
 		}
 	</style>
 </head>
 
 <body>
 
+	<div class="nav-links">
+		<a href="/">← Home</a>
+		<!-- Only show User Management link if admin -->
+		<a href="/users" sec:authorize="hasAuthority('ROLE_ADMIN')">User Management</a>
+	</div>
+
 	<div class="card">
 		<h1>My Profile</h1>
 
-		<div class="info-row">
-			<span class="label">Username:</span>
-			<span sec:authentication="name"></span>
+		<div class="alert">
+			Note: Changing your Username or Password will require you to log in again.
 		</div>
 
-		<div class="info-row">
-			<span class="label">Roles:</span>
-			<span sec:authentication="authorities"></span>
-		</div>
+		<form th:action="@{/profile}" th:object="${user}" method="post">
 
-		<!-- Additional info from ID Token if available -->
+			<div class="form-group">
+				<label>Current Username</label>
+				<input type="text" th:field="*{username}" required>
+				<small style="color: gray;">Current: <span sec:authentication="name"></span></small>
+			</div>
 
-		<a href="/" class="btn">Back to Home</a>
+			<div class="form-group">
+				<label>New Password (leave blank to keep current)</label>
+				<input type="password" th:field="*{password}" placeholder="Enter new password">
+			</div>
+
+			<div class="form-group">
+				<label>Your Roles (Read-only)</label>
+				<div style="padding: 8px; background: #eee;">
+					<span sec:authentication="authorities"></span>
+				</div>
+			</div>
+
+			<button type="submit">Update Profile</button>
+		</form>
 	</div>
 
 </body>
