@@ -9,9 +9,9 @@
         <relativePath/>
     </parent>
     <groupId>cn.civer</groupId>
-    <artifactId>client-app</artifactId>
+    <artifactId>client-usermanage</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>client-app</name>
+    <name>client-usermanage</name>
     <description>SSO Client Demo</description>
     <properties>
         <java.version>17</java.version>

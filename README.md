@@ -154,7 +154,7 @@ INSERT INTO oauth2_registered_client (
     'client_secret_basic',                         -- Auth Methods
     'authorization_code,refresh_token',            -- Grant Types
     'http://127.0.0.1:8082/login/oauth2/code/oidc-client', -- Redirect URI (注意端口)
-    NULL,                                          -- Post Logout Redirect URI
+    'http://127.0.0.1:8080/login',                 -- Post Logout Redirect URI (允许跳转回 Auth Server 登录页)
     'openid,profile',                              -- Scopes
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-authorization-consent":true,"settings.client.require-proof-key":false}', -- Client Settings (Json)
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.access-token-time-to-live":["java.time.Duration",1800.000000000]}'  -- Token Settings (Json)

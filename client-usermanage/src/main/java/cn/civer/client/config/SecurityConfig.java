@@ -25,13 +25,10 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
 	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
-	private final String authServerLoginUrl;
 
 	public SecurityConfig(
-			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
-			@Value("${app.auth-server-login-url}") String authServerLoginUrl) {
+			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository) {
 		this.clientRegistrationRepository = clientRegistrationRepository;
-		this.authServerLoginUrl = authServerLoginUrl;
 	}
 
 	@Bean
@@ -51,8 +48,23 @@ public class SecurityConfig {
 		org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler successHandler = new org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler(
 				this.clientRegistrationRepository);
 
-		// Sets the `post_logout_redirect_uri` parameter to the Auth Server Login Page
-		successHandler.setPostLogoutRedirectUri(this.authServerLoginUrl);
+		// Dynamically derive Auth Server Login URL from the "oidc-client" registration
+		String authServerLoginUrl = "http://127.0.0.1:8080/login"; // Fallback
+
+		try {
+			var registration = this.clientRegistrationRepository.findByRegistrationId("oidc-client");
+			if (registration != null) {
+				String issuer = registration.getProviderDetails().getIssuerUri();
+				if (issuer != null) {
+					// Ensure no double slashes if issuer ends with /
+					authServerLoginUrl = issuer.replaceAll("/$", "") + "/login";
+				}
+			}
+		} catch (Exception e) {
+			// Log error or stick to fallback
+		}
+
+		successHandler.setPostLogoutRedirectUri(authServerLoginUrl);
 		return successHandler;
 	}
 
