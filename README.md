@@ -361,14 +361,37 @@ public RegisteredClientRepository registeredClientRepository() {
 *   API 层面**严格忽略**了 `role` 和 `enabled` 字段的修改请求，防止普通用户提权。
 
 ### 2. 页面交互
+*   **入口**: 访问 `/profile` 页面，或者从“用户管理”页面的右上角进入（仅限管理员）。
+*   **修改密码**: 留空则不修改。
+*   **修改用户名**: 一旦修改成功，系统会强制您**重新登录**（因为 access token 中的 `sub` 字段失效了）。
+
 ### 3. 全局登出 (Global Logout)
 以前的 Logout 只是清除了 Client App 的 Cookie，并没有通知 Auth Server，导致“点登录”立刻又进来了。
-现在我们实现了 **OIDC RP-Initiated Logout**:
-*   当您在 Client App 点击 **Logout**。
-*   Client App 会清除本地会话。
+现在的流程如下：
+*   用户在 Client App 点击 **Logout**。
+*   Client App 清除本地会话 (`CLIENT_SESSIONID`)。
 *   Client App 自动跳转到 Auth Server 的 `/connect/logout` 端点。
-*   Auth Server 清除 SSO 会话。
-*   最终跳转回 Client App 的首页，此时您是**彻底登出**状态。
+*   Auth Server 清除 SSO 会话 (`AUTH_SESSIONID`)。
+*   Auth Server 根据配置 (`post-logout-redirect-uri`) 将用户重定向回 Client App 的首页。
+*   由于此时双方会话均已清除，用户处于**彻底登出**状态。
+
+---
+
+## 🔒 安全增强 (Bug Fixes)
+
+我们在开发过程中修复了几个关键的安全和逻辑问题：
+
+1.  **防止密码双重哈希 (Double Hashing)**
+    *   **问题**: Client App 更新用户状态时，不小心把 Auth Server 返回的“已加密密码”又发回去了，导致 Auth Server 再次加密，密码彻底乱掉。
+    *   **修复**: 在 Auth Server 的 `User` 实体中，对密码字段加上了 `@JsonProperty(access = WRITE_ONLY)`。这确保了密码**只能写入**（修改时），**绝不会读取**（查询 API 永远不返回密码字段），从根源上解决了问题。
+
+2.  **稳健的更新逻辑 (Fetch-Modify-Save)**
+    *   **修复**: Client App 的更新操作不再依赖前端传递所有字段。现在改为先从服务器拉取最新数据，只修改变化的字段（如 `enabled` 状态），然后写回。这避免了因前端表单字段缺失导致的数据损坏。
+
+3.  **UI/UX 优化**
+    *   **排序**: 用户列表强制按 ID 排序，防止刷新后乱序。
+    *   **交互**: 修复了按钮点击区域过小的问题，优化了表格布局。
+
 
 
 
