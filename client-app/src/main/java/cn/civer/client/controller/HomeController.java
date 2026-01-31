@@ -3,31 +3,29 @@ package cn.civer.client.controller;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.stereotype.Controller; // Change to @Controller
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseBody; // For JSON endpoints
 
-import java.util.HashMap;
 import java.util.Map;
 
-@RestController
+@Controller // Use MVC Controller
 public class HomeController {
 
 	@GetMapping("/")
-	public Map<String, Object> home(@AuthenticationPrincipal OidcUser principal) {
-		Map<String, Object> model = new HashMap<>();
+	public String home(Model model, @AuthenticationPrincipal OidcUser principal) {
 		if (principal != null) {
-			model.put("username", principal.getName());
-			model.put("attributes", principal.getAttributes());
-			model.put("authorities", principal.getAuthorities());
-		} else {
-			model.put("message", "Not logged in");
+			model.addAttribute("username", principal.getName());
+			model.addAttribute("idToken", principal.getIdToken().getTokenValue());
 		}
-		return model;
+		return "index"; // Returns index.html template
 	}
 
 	@GetMapping("/admin/dashboard")
-	@PreAuthorize("hasAuthority('ROLE_ADMIN')") // or check claims manually if authority mapping issues
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	@ResponseBody // Keep this a simple API/JSON response for now
 	public Map<String, Object> adminDashboard() {
-		return Map.of("message", "Welcome Admin!");
+		return Map.of("message", "Welcome Admin! You have access to this protected resource.");
 	}
 }
