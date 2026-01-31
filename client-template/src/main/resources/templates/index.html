@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+	<title>Client Template</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			margin: 40px;
+		}
+
+		.card {
+			border: 1px solid #ddd;
+			padding: 20px;
+			border-radius: 5px;
+			background: #f9f9f9;
+		}
+
+		.btn {
+			display: inline-block;
+			padding: 10px 20px;
+			text-decoration: none;
+			border-radius: 5px;
+			color: white;
+		}
+
+		.btn-login {
+			background-color: #4CAF50;
+		}
+
+		.btn-logout {
+			background-color: #f44336;
+			border: none;
+			cursor: pointer;
+		}
+
+		pre {
+			background: #eee;
+			padding: 10px;
+			overflow-x: auto;
+		}
+	</style>
+</head>
+
+<body>
+
+	<h1>Client App Template</h1>
+
+	<div sec:authorize="!isAuthenticated()">
+		<p>You are not logged in.</p>
+		<a href="/oauth2/authorization/oidc-client" class="btn btn-login">Login with SSO</a>
+	</div>
+
+	<div sec:authorize="isAuthenticated()" class="card">
+		<h2>Welcome, <span th:text="${username}">User</span>!</h2>
+
+		<p><strong>Your Authorities (Roles):</strong></p>
+		<ul>
+			<li th:each="auth : ${authorities}" th:text="${auth.authority}">ROLE_USER</li>
+		</ul>
+
+		<p><strong>Raw Attributes:</strong></p>
+		<pre th:text="${attributes}"></pre>
+
+		<form th:action="@{/logout}" method="post" style="margin-top: 20px;">
+			<button type="submit" class="btn btn-logout">Logout</button>
+		</form>
+	</div>
+
+</body>
+
+</html>

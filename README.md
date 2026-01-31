@@ -179,6 +179,34 @@ INSERT INTO oauth2_registered_client (
 
 ---
 
+## 📦 快速接入 (Client Template)
+
+为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
+
+### 接入步骤 (5分钟完成)
+
+1.  **复制项目**:
+    *   复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）。
+
+2.  **修改 `pom.xml`**:
+    *   将 `artifactId` 和 `name` 修改为 `client-oa`。
+
+3.  **修改配置 (`application.yml`)**:
+    *   **Port**: 修改 `server.port` (例如 `8082`)。
+    *   **Cookie**: 修改 `server.servlet.session.cookie.name` (例如 `OA_SESSIONID`)，防止 Cookie 冲突。
+    *   **Client ID**: 修改 `client-id` (例如 `oa-system`)。
+    *   **Redirect URI**: 确保端口与 Port 一致 (例如 `http://127.0.0.1:8082/...`)。
+
+4.  **注册数据库**:
+    *   运行 `src/test/java/.../ClientSqlGenerator.java` 生成 SQL。
+    *   将 SQL 执行到 Auth Server 的数据库中。
+
+5.  **启动开发**:
+    *   模板已内置最核心的 `SecurityConfig` (自动适配 Auth Server 地址) 和 `HomeController`。
+    *   您可以直接开始编写业务逻辑。
+
+---
+
 ## 🔧 配置文件说明 (YAML Configuration)
 
 ### 1. 认证中心 (Auth Server)
