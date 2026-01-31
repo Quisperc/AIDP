@@ -24,7 +24,7 @@ public class UserManagementController {
 	@GetMapping
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 	public List<User> getUsers() {
-		return userRepository.findAll();
+		return userRepository.findAll(org.springframework.data.domain.Sort.by("id"));
 	}
 
 	@PostMapping

@@ -27,7 +27,8 @@ public class DataInitializer {
 			RegisteredClientRepository registeredClientRepository,
 			@Value("${app.auth.client-id}") String clientId,
 			@Value("${app.auth.client-secret}") String clientSecret,
-			@Value("${app.auth.redirect-uri}") String redirectUri) {
+			@Value("${app.auth.redirect-uri}") String redirectUri,
+			@Value("${app.auth.post-logout-redirect-uri}") String postLogoutRedirectUri) {
 		return args -> {
 			// Initialize Users
 			if (userRepository.count() == 0) {
@@ -36,23 +37,26 @@ public class DataInitializer {
 				System.out.println("Default users created: admin/password, user/password");
 			}
 
-			// Initialize Client
-			if (registeredClientRepository.findByClientId(clientId) == null) {
-				RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-						.clientId(clientId)
-						.clientSecret(passwordEncoder.encode(clientSecret))
-						.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-						.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-						.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-						.redirectUri(redirectUri) // Client App URL
-						.scope(OidcScopes.OPENID)
-						.scope(OidcScopes.PROFILE)
-						.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
-						.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
-						.build();
-				registeredClientRepository.save(registeredClient);
-				System.out.println("Default client created: " + clientId);
-			}
+			// Initialize or Update Client
+			RegisteredClient existingClient = registeredClientRepository.findByClientId(clientId);
+			String id = existingClient != null ? existingClient.getId() : UUID.randomUUID().toString();
+
+			RegisteredClient registeredClient = RegisteredClient.withId(id)
+					.clientId(clientId)
+					.clientSecret(passwordEncoder.encode(clientSecret))
+					.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+					.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+					.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+					.redirectUri(redirectUri) // Client App URL
+					.postLogoutRedirectUri(postLogoutRedirectUri) // Configured in yaml
+					.scope(OidcScopes.OPENID)
+					.scope(OidcScopes.PROFILE)
+					.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+					.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
+					.build();
+
+			registeredClientRepository.save(registeredClient);
+			System.out.println("Client configured: " + clientId);
 		};
 	}
 }

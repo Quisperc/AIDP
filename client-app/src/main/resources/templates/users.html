@@ -55,9 +55,28 @@
         .btn-edit {
             background-color: #2196F3;
             text-decoration: none;
+            display: inline-block;
+            /* Fix click area */
             padding: 5px 10px;
             border-radius: 3px;
             font-size: 13px;
+            position: relative;
+            /* Ensure z-index works */
+            z-index: 10;
+        }
+
+        /* Ensure active/disable buttons also have clickability */
+        button {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Fix potential overlap from header or container */
+        .form-container {
+            /* ... */
+            position: relative;
+            /* Create stacking context */
+            z-index: 5;
         }
 
         .btn-disable {
@@ -90,7 +109,11 @@
 <body>
 
     <a href="/" class="back-link">← Back to Home</a> |
-    <a href="/profile" class="back-link">My Profile</a>
+    <a href="/profile" class="back-link">My Profile</a> |
+    <form th:action="@{/logout}" method="post" style="display:inline;">
+        <button type="submit"
+            style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; padding:0;">Logout</button>
+    </form>
 
     <h1>User Management</h1>
 
@@ -132,9 +155,6 @@
 
                     <!-- Enable/Disable Toggle Form -->
                     <form th:action="@{/users/{id}/status(id=${user.id})}" method="post" style="display:inline;">
-                        <input type="hidden" name="username" th:value="${user.username}" />
-                        <input type="hidden" name="role" th:value="${user.role}" />
-                        <input type="hidden" name="enabled" th:value="${!user.enabled}" />
                         <button type="submit" th:class="${user.enabled} ? 'btn-disable' : 'btn-enable'"
                             th:text="${user.enabled} ? 'Disable' : 'Enable'"></button>
                     </form>

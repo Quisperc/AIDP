@@ -361,9 +361,15 @@ public RegisteredClientRepository registeredClientRepository() {
 *   API 层面**严格忽略**了 `role` 和 `enabled` 字段的修改请求，防止普通用户提权。
 
 ### 2. 页面交互
-*   **入口**: 访问 `/profile` 页面，或者从“用户管理”页面的右上角进入（仅限管理员）。
-*   **修改密码**: 留空则不修改。
-*   **修改用户名**: 一旦修改成功，系统会强制您**重新登录**（因为 access token 中的 `sub` 字段失效了）。
+### 3. 全局登出 (Global Logout)
+以前的 Logout 只是清除了 Client App 的 Cookie，并没有通知 Auth Server，导致“点登录”立刻又进来了。
+现在我们实现了 **OIDC RP-Initiated Logout**:
+*   当您在 Client App 点击 **Logout**。
+*   Client App 会清除本地会话。
+*   Client App 自动跳转到 Auth Server 的 `/connect/logout` 端点。
+*   Auth Server 清除 SSO 会话。
+*   最终跳转回 Client App 的首页，此时您是**彻底登出**状态。
+
 
 
 

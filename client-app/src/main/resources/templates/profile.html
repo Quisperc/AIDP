@@ -102,7 +102,13 @@
 				</div>
 			</div>
 
-			<button type="submit">Update Profile</button>
+			<div class="form-group">
+				<button type="submit">Update Profile</button>
+			</div>
+		</form>
+
+		<form th:action="@{/logout}" method="post" style="margin-top: 10px;">
+			<button type="submit" style="background-color: #6c757d; width: 100%;">Logout</button>
 		</form>
 	</div>
 

@@ -2,6 +2,7 @@ package cn.civer.client.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -24,6 +25,16 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
+	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
+	private final String authServerLoginUrl;
+
+	public SecurityConfig(
+			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
+			@Value("${app.auth-server-login-url}") String authServerLoginUrl) {
+		this.clientRegistrationRepository = clientRegistrationRepository;
+		this.authServerLoginUrl = authServerLoginUrl;
+	}
+
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
@@ -31,8 +42,19 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 				.oauth2Login(oauth2 -> oauth2
 						.userInfoEndpoint(userInfo -> userInfo
-								.oidcUserService(this.oidcUserService())));
+								.oidcUserService(this.oidcUserService())))
+				.logout(logout -> logout
+						.logoutSuccessHandler(oidcLogoutSuccessHandler()));
 		return http.build();
+	}
+
+	private org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler() {
+		org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler successHandler = new org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler(
+				this.clientRegistrationRepository);
+
+		// Sets the `post_logout_redirect_uri` parameter to the Auth Server Login Page
+		successHandler.setPostLogoutRedirectUri(this.authServerLoginUrl);
+		return successHandler;
 	}
 
 	private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {

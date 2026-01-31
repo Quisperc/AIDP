@@ -25,6 +25,20 @@ public class UserService {
 				.block();
 	}
 
+	public UserDto getUser(Long id) {
+		// We need to implement finding a single user.
+		// Option A: Filter from list (inefficient but works without API change)
+		// Option B: Add GET /api/users/{id} to Auth Server.
+		// Current Auth Server doesn't have GET /api/users/{id}.
+		// Let's stick to list filtering for now as it matches current Auth Server
+		// capability
+		// OR better, since I am in "Fix" mode, let's just use the list.
+		return getUsers().stream()
+				.filter(u -> u.getId().equals(id))
+				.findFirst()
+				.orElseThrow(() -> new RuntimeException("User not found"));
+	}
+
 	public UserDto createUser(UserDto user) {
 		return this.webClient.post()
 				.uri(AUTH_SERVER_URI + "/api/users")

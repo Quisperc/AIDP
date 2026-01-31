@@ -62,16 +62,7 @@ public class UserController {
 
 	@GetMapping("/{id}/edit")
 	public String editUserPage(@org.springframework.web.bind.annotation.PathVariable Long id, Model model) {
-		// ideally fetch user by id, but our service returns list.
-		// For simplicity in this demo without specific 'findById' in service (yet),
-		// we can filter from list or add findById to service.
-		// Let's add findById to service for better practice or just loop list since
-		// it's small.
-		// Adding findById to service is better.
-		UserService.UserDto user = userService.getUsers().stream()
-				.filter(u -> u.getId().equals(id))
-				.findFirst()
-				.orElse(new UserService.UserDto());
+		UserService.UserDto user = userService.getUser(id);
 		model.addAttribute("user", user);
 		return "user-edit";
 	}
@@ -79,19 +70,28 @@ public class UserController {
 	@PostMapping("/{id}/update")
 	public String updateUser(@org.springframework.web.bind.annotation.PathVariable Long id,
 			@ModelAttribute UserService.UserDto user) {
-		// user object from form contains updated fields.
-		userService.updateUser(id, user);
+		// user object from form might have null username.
+		// logic: existing user details + form updates.
+		UserService.UserDto existing = userService.getUser(id);
+		existing.setRole(user.getRole());
+		// If password is provided, update it. If empty, keep null (Service/Controller
+		// handles this).
+		existing.setPassword(user.getPassword());
+		existing.setEnabled(user.isEnabled());
+		// Username is typically immutable or handled via /me, but here admin might
+		// update it.
+		// user-edit.html has username readonly.
+		// For robustness, let's trust the ID.
+		userService.updateUser(id, existing);
 		return "redirect:/users";
 	}
 
 	@PostMapping("/{id}/status")
-	public String toggleStatus(@org.springframework.web.bind.annotation.PathVariable Long id, boolean enabled,
-			String username, String role) {
-		UserService.UserDto dto = new UserService.UserDto();
-		dto.setEnabled(enabled);
-		dto.setUsername(username);
-		dto.setRole(role);
-		userService.updateUser(id, dto);
+	public String toggleStatus(@org.springframework.web.bind.annotation.PathVariable Long id) {
+		// Robust Logic: Fetch -> Toggle -> Save
+		UserService.UserDto user = userService.getUser(id);
+		user.setEnabled(!user.isEnabled());
+		userService.updateUser(id, user);
 		return "redirect:/users";
 	}
 }
