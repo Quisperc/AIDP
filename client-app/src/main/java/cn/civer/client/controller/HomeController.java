@@ -16,10 +16,15 @@ public class HomeController {
 	@GetMapping("/")
 	public String home(Model model, @AuthenticationPrincipal OidcUser principal) {
 		if (principal != null) {
-			model.addAttribute("username", principal.getName());
-			model.addAttribute("idToken", principal.getIdToken().getTokenValue());
+			// Role-based redirection
+			if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+				return "redirect:/users";
+			} else {
+				return "redirect:/profile";
+			}
 		}
-		return "index"; // Returns index.html template
+		return "index"; // Keeps index as a fallback or landing for non-logged in (though SecurityConfig
+						// likely forces login)
 	}
 
 	@GetMapping("/admin/dashboard")

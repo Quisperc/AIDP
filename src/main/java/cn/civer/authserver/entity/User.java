@@ -23,6 +23,9 @@ public class User {
 	@Column(nullable = false)
 	private String role; // e.g., ROLE_USER, ROLE_ADMIN
 
+	@Column(nullable = false)
+	private boolean enabled = true;
+
 	public User(String username, String password, String role) {
 		this.username = username;
 		this.password = password;

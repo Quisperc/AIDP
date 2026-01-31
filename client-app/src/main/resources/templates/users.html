@@ -1,54 +1,147 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
+
 <head>
     <title>User Management</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .form-container { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-        input, select { padding: 8px; margin-right: 10px; }
-        button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        .back-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #333; }
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .form-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        input,
+        select {
+            padding: 8px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            color: white;
+        }
+
+        .btn-create {
+            background-color: #4CAF50;
+            padding: 8px 16px;
+        }
+
+        .btn-edit {
+            background-color: #2196F3;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .btn-disable {
+            background-color: #f44336;
+        }
+
+        .btn-enable {
+            background-color: #4CAF50;
+        }
+
+        .status-active {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-disabled {
+            color: red;
+            font-weight: bold;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #333;
+        }
     </style>
 </head>
+
 <body>
 
-<a href="/" class="back-link">← Back to Home</a>
+    <a href="/" class="back-link">← Back to Home</a>
 
-<h1>User Management</h1>
+    <h1>User Management</h1>
 
-<div class="form-container">
-    <h3>Add New User</h3>
-    <form th:action="@{/users}" th:object="${newUser}" method="post">
-        <input type="text" th:field="*{username}" placeholder="Username" required />
-        <input type="password" th:field="*{password}" placeholder="Password" required />
-        <select th:field="*{role}">
-            <option value="ROLE_USER">User</option>
-            <option value="ROLE_ADMIN">Admin</option>
-        </select>
-        <button type="submit">Create User</button>
-    </form>
-</div>
+    <div class="form-container">
+        <h3>Add New User</h3>
+        <form th:action="@{/users}" th:object="${newUser}" method="post">
+            <input type="text" th:field="*{username}" placeholder="Username" required />
+            <input type="password" th:field="*{password}" placeholder="Password" required />
+            <select th:field="*{role}">
+                <option value="ROLE_USER">User</option>
+                <option value="ROLE_ADMIN">Admin</option>
+            </select>
+            <button type="submit" class="btn-create">Create User</button>
+        </form>
+    </div>
 
-<table>
-    <thead>
-    <tr>
-        <th>ID</th>
-        <th>Username</th>
-        <th>Role</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="user : ${users}">
-        <td th:text="${user.id}">1</td>
-        <td th:text="${user.username}">admin</td>
-        <td th:text="${user.role}">ROLE_ADMIN</td>
-    </tr>
-    </tbody>
-</table>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="user : ${users}">
+                <td th:text="${user.id}">1</td>
+                <td th:text="${user.username}">admin</td>
+                <td th:text="${user.role}">ROLE_ADMIN</td>
+                <td>
+                    <span th:if="${user.enabled}" class="status-active">Active</span>
+                    <span th:unless="${user.enabled}" class="status-disabled">Disabled</span>
+                </td>
+                <td>
+                    <!-- Edit Button -->
+                    <a th:href="@{/users/{id}/edit(id=${user.id})}" class="btn btn-edit">Edit</a>
+
+                    <!-- Enable/Disable Toggle Form -->
+                    <form th:action="@{/users/{id}/status(id=${user.id})}" method="post" style="display:inline;">
+                        <input type="hidden" name="username" th:value="${user.username}" />
+                        <input type="hidden" name="role" th:value="${user.role}" />
+                        <input type="hidden" name="enabled" th:value="${!user.enabled}" />
+                        <button type="submit" th:class="${user.enabled} ? 'btn-disable' : 'btn-enable'"
+                            th:text="${user.enabled} ? 'Disable' : 'Enable'"></button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 
 </body>
+
 </html>

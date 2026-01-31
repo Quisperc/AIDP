@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Edit User</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			margin: 40px;
+			max-width: 600px;
+			margin: 0 auto;
+		}
+
+		.form-group {
+			margin-bottom: 15px;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 5px;
+			font-weight: bold;
+		}
+
+		input,
+		select {
+			width: 100%;
+			padding: 8px;
+			box-sizing: border-box;
+		}
+
+		button {
+			padding: 10px 15px;
+			background-color: #2196F3;
+			color: white;
+			border: none;
+			cursor: pointer;
+			border-radius: 4px;
+		}
+
+		button:hover {
+			background-color: #0b7dda;
+		}
+
+		.back-link {
+			display: inline-block;
+			margin-bottom: 20px;
+			text-decoration: none;
+			color: #333;
+		}
+	</style>
+</head>
+
+<body>
+
+	<a href="/users" class="back-link">← Back to User List</a>
+
+	<h1>Edit User: <span th:text="${user.username}"></span></h1>
+
+	<form th:action="@{/users/{id}/update(id=${user.id})}" th:object="${user}" method="post">
+		<!-- Read-only username just for display or submission if needed (API might not allow change) -->
+		<div class="form-group">
+			<label>Username (Cannot be changed)</label>
+			<input type="text" th:field="*{username}" readonly style="background: #eee;">
+		</div>
+
+		<div class="form-group">
+			<label>Role</label>
+			<select th:field="*{role}">
+				<option value="ROLE_USER">User</option>
+				<option value="ROLE_ADMIN">Admin</option>
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label>Status</label>
+			<select th:field="*{enabled}">
+				<option th:value="true">Active</option>
+				<option th:value="false">Disabled</option>
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label>New Password (leave blank to keep current)</label>
+			<input type="password" th:field="*{password}" placeholder="Enter new password to change">
+		</div>
+
+		<button type="submit">Save Changes</button>
+	</form>
+
+</body>
+
+</html>

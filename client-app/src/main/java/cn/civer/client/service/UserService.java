@@ -34,12 +34,30 @@ public class UserService {
 				.block();
 	}
 
+	public void updateUser(Long id, UserDto user) {
+		this.webClient.put()
+				.uri(AUTH_SERVER_URI + "/api/users/" + id)
+				.bodyValue(user)
+				.retrieve()
+				.toBodilessEntity()
+				.block();
+	}
+
+	public void deleteUser(Long id) {
+		this.webClient.delete()
+				.uri(AUTH_SERVER_URI + "/api/users/" + id)
+				.retrieve()
+				.toBodilessEntity()
+				.block();
+	}
+
 	@Data
 	public static class UserDto {
 		private Long id;
 		private String username;
 		private String password;
 		private String role;
+		private boolean enabled = true;
 
 		// No-args constructor
 		public UserDto() {

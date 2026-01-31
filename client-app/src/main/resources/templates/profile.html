@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+	<title>My Profile</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			margin: 40px;
+			text-align: center;
+		}
+
+		.card {
+			border: 1px solid #ccc;
+			padding: 20px;
+			border-radius: 8px;
+			max-width: 500px;
+			margin: 0 auto;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		}
+
+		.info-row {
+			margin: 10px 0;
+			border-bottom: 1px solid #eee;
+			padding-bottom: 5px;
+			text-align: left;
+		}
+
+		.label {
+			font-weight: bold;
+			width: 100px;
+			display: inline-block;
+		}
+
+		.btn {
+			display: inline-block;
+			padding: 10px 20px;
+			background-color: #6c757d;
+			color: white;
+			text-decoration: none;
+			border-radius: 5px;
+			margin-top: 20px;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="card">
+		<h1>My Profile</h1>
+
+		<div class="info-row">
+			<span class="label">Username:</span>
+			<span sec:authentication="name"></span>
+		</div>
+
+		<div class="info-row">
+			<span class="label">Roles:</span>
+			<span sec:authentication="authorities"></span>
+		</div>
+
+		<!-- Additional info from ID Token if available -->
+
+		<a href="/" class="btn">Back to Home</a>
+	</div>
+
+</body>
+
+</html>

@@ -35,7 +35,31 @@ public class UserManagementController {
 		if (user.getRole() == null || user.getRole().isEmpty()) {
 			user.setRole("ROLE_USER");
 		}
+		user.setEnabled(true); // Default enabled
 		User saved = userRepository.save(user);
 		return ResponseEntity.ok(saved);
+	}
+
+	@PutMapping("/{id}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+		return userRepository.findById(id).map(user -> {
+			user.setRole(updatedUser.getRole());
+			user.setEnabled(updatedUser.isEnabled());
+			if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+				user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+			}
+			return ResponseEntity.ok(userRepository.save(user));
+		}).orElse(ResponseEntity.notFound().build());
+	}
+
+	@DeleteMapping("/{id}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+		return userRepository.findById(id).map(user -> {
+			user.setEnabled(false); // Soft delete
+			userRepository.save(user);
+			return ResponseEntity.ok().<Void>build();
+		}).orElse(ResponseEntity.notFound().build());
 	}
 }
