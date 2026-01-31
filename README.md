@@ -313,5 +313,37 @@ public RegisteredClientRepository registeredClientRepository() {
 1.  引入 `spring-boot-starter-jdbc` 依赖。
 2.  在数据库中创建标准表 `oauth2_registered_client`（Spring Authorization Server 提供了标准建表语句）。
 3.  将 Bean 替换为 `return new JdbcRegisteredClientRepository(jdbcTemplate);`。
+### 3. 生产环境推荐方案 (数据库模式)
+随着子系统增多，写在代码或配置文件里会很难维护（每次新增都要重启）。
+
+**最佳实践**是使用 **`JdbcRegisteredClientRepository`**。
+1.  引入 `spring-boot-starter-jdbc` 依赖。
+2.  在数据库中创建标准表 `oauth2_registered_client`（Spring Authorization Server 提供了标准建表语句）。
+3.  将 Bean 替换为 `return new JdbcRegisteredClientRepository(jdbcTemplate);`。
 4.  这样您就可以通过 SQL 或开发一个管理后台，动态地添加、删除子系统，而无需重启服务。
+
+---
+
+## 👤 用户管理系统 (Phase 2)
+
+现在，认证中心 (Auth Server) 已升级为 **资源服务器 (Resource Server)**，提供用户管理的 REST API。而子系统 (Client App) 则提供了管理界面。
+
+### 1. 架构逻辑
+1.  **Client App (8081)**: 用户访问 `/users` 页面。
+2.  **WebClient**: 自动获取当前登录用户的 `Access Token`。
+3.  **API 调用**: Client App 携带 Token 向 Auth Server 发起 `GET /api/users` 请求。
+4.  **Auth Server (8080)**:
+    *   验证 Token 签名是否合法。
+    *   检查 Token 中是否包含 `ROLE_ADMIN` 权限。
+    *   返回用户列表 JSON。
+
+### 2. 功能验证
+1.  **管理员登录 (Admin)**: 
+    *   访问 `http://127.0.0.1:8081/users`
+    *   可以看到用户列表，并能添加新用户（直接写入认证中心数据库）。
+2.  **普通用户登录 (User)**: 
+    *   访问 `http://127.0.0.1:8081/users`
+    *   会看到 **403 Forbidden** 错误（UI 层拦截）。
+    *   即使直接调用 API，也会被 Auth Server 拦截。
+
 

@@ -61,8 +61,11 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
+						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
-				.formLogin(Customizer.withDefaults());
+				.formLogin(Customizer.withDefaults())
+				.oauth2ResourceServer((resourceServer) -> resourceServer
+						.jwt(Customizer.withDefaults()));
 
 		return http.build();
 	}
