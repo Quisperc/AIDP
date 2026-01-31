@@ -161,6 +161,16 @@ INSERT INTO oauth2_registered_client (
 );
 ```
 
+### 🛠️ 自动生成 SQL 脚本 (Generator Script)
+为了方便生成上述 SQL（特别是加密后的 Secret），我们提供了一个 Java 小工具。
+1.  找到文件：`src/test/java/cn/civer/authserver/ClientSqlGenerator.java`。
+2.  在 IDE (VS Code / IntelliJ) 中运行该文件的 `main` 方法。
+3.  根据控制台提示输入：
+    *   Client ID (如 `oa-system`)
+    *   Client Secret (明文，如 `123456`)
+    *   App Port (如 `8082`) - *脚本会自动帮您拼接好 Redirect URI。*
+4.  脚本会生成完整的 `INSERT INTO` 语句，直接复制到数据库执行即可。
+
 **⚠️ 注意事项**:
 1.  **Client Secret**: 必须是 **BCrypt 加密** 后的字符串。也就是 `DataInitializer` 中 `passwordEncoder.encode("secret")` 的结果。
     *   `secret` 的密文 (strength 10) 参考: `$2a$10$HuWl.U9C5.1/.Fq.pY.a..v/V.u.t.u.t.u.t.u.t.u.t.u.t.` (请尽量生成新的)
