@@ -22,6 +22,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
 		</dependency>
+		<!-- Explicitly adding security starter to ensure core/web/config are present -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
 		<!-- Explicitly adding spring-security-oauth2-client to ensure it's on classpath -->
 		<dependency>
 			<groupId>org.springframework.security</groupId>

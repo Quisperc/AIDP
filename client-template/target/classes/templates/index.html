@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Client Template</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			padding: 20px;
+		}
+
+		.card {
+			border: 1px solid #ccc;
+			padding: 15px;
+			border-radius: 5px;
+			max-width: 600px;
+			margin: 0 auto;
+		}
+
+		.btn {
+			display: inline-block;
+			padding: 10px 20px;
+			background-color: #dc3545;
+			color: white;
+			text-decoration: none;
+			border-radius: 5px;
+		}
+
+		.btn:hover {
+			background-color: #c82333;
+		}
+
+		pre {
+			background: #f4f4f4;
+			padding: 10px;
+			overflow-x: auto;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="card">
+		<h1>Hello, <span th:text="${username}">User</span>!</h1>
+		<p>You have successfully logged in via SSO.</p>
+
+		<h3>User Details</h3>
+		<ul>
+			<li><strong>Email:</strong> <span th:text="${email}">N/A</span></li>
+			<li><strong>Roles:</strong> <span th:text="${authorities}">[]</span></li>
+		</ul>
+
+		<h3>Raw Claims</h3>
+		<pre th:text="${claims}"></pre>
+
+		<div style="margin-top: 20px;">
+			<a href="/logout" class="btn">Logout (Clear Authorization)</a>
+		</div>
+	</div>
+</body>
+
+</html>

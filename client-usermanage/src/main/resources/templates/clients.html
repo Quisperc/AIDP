@@ -19,7 +19,7 @@
 	</div>
 
 	<h2>Register New Client</h2>
-	<form action="/admin/clients" method="post">
+	<form th:action="@{/admin/clients}" method="post">
 		<div>
 			<label>Client ID:</label>
 			<input type="text" name="clientId" required />
