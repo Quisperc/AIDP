@@ -61,7 +61,7 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/css/**", "/js/**", "/error").permitAll()
+						.requestMatchers("/", "/login", "/css/**", "/js/**", "/error", "/.well-known/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form
@@ -130,6 +130,13 @@ public class AuthorizationServerConfig {
 				context.getClaims().claim("roles", authorities);
 			}
 		};
+	}
+
+	@Bean
+	public org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService authorizationConsentService(
+			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
+		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService(
+				jdbcTemplate, registeredClientRepository);
 	}
 
 }

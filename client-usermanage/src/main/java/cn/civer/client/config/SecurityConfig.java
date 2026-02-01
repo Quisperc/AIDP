@@ -27,6 +27,9 @@ public class SecurityConfig {
 	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
 	private final cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
 
+	@org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.name}")
+	private String cookieName;
+
 	public SecurityConfig(
 			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
 			cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
@@ -46,32 +49,11 @@ public class SecurityConfig {
 								.oidcUserService(this.oidcUserService()))
 						.successHandler(customAuthenticationSuccessHandler))
 				.logout(logout -> logout
-						.logoutSuccessHandler(oidcLogoutSuccessHandler()));
+						.logoutSuccessUrl("/") // Local logout only based on requirement
+						.invalidateHttpSession(true)
+						.clearAuthentication(true)
+						.deleteCookies(cookieName));
 		return http.build();
-	}
-
-	private org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler() {
-		org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler successHandler = new org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler(
-				this.clientRegistrationRepository);
-
-		// Dynamically derive Auth Server Login URL from the "oidc-client" registration
-		String authServerLoginUrl = "http://127.0.0.1:8080/login"; // Fallback
-
-		try {
-			var registration = this.clientRegistrationRepository.findByRegistrationId("oidc-client");
-			if (registration != null) {
-				String issuer = registration.getProviderDetails().getIssuerUri();
-				if (issuer != null) {
-					// Ensure no double slashes if issuer ends with /
-					authServerLoginUrl = issuer.replaceAll("/$", "") + "/login";
-				}
-			}
-		} catch (Exception e) {
-			// Log error or stick to fallback
-		}
-
-		successHandler.setPostLogoutRedirectUri(authServerLoginUrl);
-		return successHandler;
 	}
 
 	private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {

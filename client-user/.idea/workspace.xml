@@ -5,23 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ad10b9ce-506c-457a-ad4e-173807518a89" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/ClientApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/ClientApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/config/WebClientConfig.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/HomeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/HomeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/ProfileController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/ProfileController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/UserController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/controller/UserController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/java/cn/civer/client/service/UserService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/profile.html" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/profile.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/user-edit.html" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/user-edit.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/users.html" beforeDir="false" afterPath="$PROJECT_DIR$/../client-usermanage/src/main/resources/templates/users.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/config/AuthorizationServerConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/config/AuthorizationServerConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/config/DataInitializer.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/config/DataInitializer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/cn/civer/authserver/controller/MainController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/resources/templates/welcome.html" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/resources/templates/welcome.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
