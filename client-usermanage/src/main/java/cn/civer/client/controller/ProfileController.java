@@ -18,7 +18,7 @@ public class ProfileController {
 		this.userService = userService;
 	}
 
-	@GetMapping("/profile")
+	@GetMapping("/user/profile")
 	public String profile(Model model, @AuthenticationPrincipal OidcUser principal) {
 		if (principal != null) {
 			UserService.UserDto user = new UserService.UserDto();
@@ -33,7 +33,7 @@ public class ProfileController {
 		return "profile";
 	}
 
-	@PostMapping("/profile")
+	@PostMapping("/user/profile")
 	public String updateProfile(@ModelAttribute UserService.UserDto user) {
 		userService.updateCurrentUserProfile(user);
 		// If username changed, we should logout.

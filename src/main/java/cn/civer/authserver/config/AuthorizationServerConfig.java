@@ -61,9 +61,15 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
+						.requestMatchers("/", "/login", "/css/**", "/js/**", "/error").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
-				.formLogin(Customizer.withDefaults())
+				.formLogin((form) -> form
+						.loginPage("/login")
+						.permitAll())
+				.logout((logout) -> logout
+						.logoutSuccessUrl("/?logout")
+						.permitAll())
 				.oauth2ResourceServer((resourceServer) -> resourceServer
 						.jwt(Customizer.withDefaults()));
 

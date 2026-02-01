@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
-@RequestMapping("/users")
+@RequestMapping("/admin/users")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class UserController {
 
@@ -30,34 +30,18 @@ public class UserController {
 	@PostMapping
 	public String createUser(@ModelAttribute UserService.UserDto user) {
 		userService.createUser(user);
-		return "redirect:/users";
+		return "redirect:/admin/users";
 	}
 
 	@PostMapping("/{id}/delete") // Using POST for form submission simplicity instead of DELETE
 	public String deleteUser(@org.springframework.web.bind.annotation.PathVariable Long id) {
 		userService.deleteUser(id);
-		return "redirect:/users";
+		return "redirect:/admin/users";
 	}
 
 	@PostMapping("/{id}/enable")
 	public String enableUser(@org.springframework.web.bind.annotation.PathVariable Long id) {
-		// Re-using update logic. We need to fetch generic first or just patch.
-		// For simplicity, client side can pass full object or we just patch enabled
-		// status.
-		// Wait, UserService.updateUser replaces fields.
-		// Let's implement toggle in service or here.
-		// Actually, since we need to read before write to be safe, or API supports
-		// patch.
-		// API supports PUT. I will assuming fetching list has data.
-		// To keep it simple, I'll add specific disable/enable flag in next iteration if
-		// needed.
-		// For now, let's stick to "Delete" button doing the soft delete.
-		// User requested "Enable/Disable".
-		// I'll add a helper to fetch single user or just pass the DTO from form?
-		// Let's just implement disable via delete endpoints as per plan.
-		// For enable, we need a way.
-		// Let's add specific logic to toggle.
-		return "redirect:/users";
+		return "redirect:/admin/users";
 	}
 
 	@GetMapping("/{id}/edit")
@@ -83,7 +67,7 @@ public class UserController {
 		// user-edit.html has username readonly.
 		// For robustness, let's trust the ID.
 		userService.updateUser(id, existing);
-		return "redirect:/users";
+		return "redirect:/admin/users";
 	}
 
 	@PostMapping("/{id}/status")
@@ -92,6 +76,6 @@ public class UserController {
 		UserService.UserDto user = userService.getUser(id);
 		user.setEnabled(!user.isEnabled());
 		userService.updateUser(id, user);
-		return "redirect:/users";
+		return "redirect:/admin/users";
 	}
 }

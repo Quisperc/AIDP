@@ -2,87 +2,43 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head>
-	<title>SSO Client Home</title>
+	<title>Dashboard</title>
 	<style>
-		body {
-			font-family: sans-serif;
-			margin: 40px;
-			text-align: center;
-		}
-
-		.card {
-			border: 1px solid #ccc;
-			padding: 20px;
-			border-radius: 8px;
-			max-width: 600px;
-			margin: 0 auto;
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-		}
-
-		h1 {
-			color: #333;
-		}
-
-		.btn {
+		.button {
 			display: inline-block;
 			padding: 10px 20px;
-			background-color: #007bff;
-			color: white;
-			text-decoration: none;
-			border-radius: 5px;
 			margin: 10px;
-		}
-
-		.btn-admin {
-			background-color: #dc3545;
-		}
-
-		.btn-logout {
-			background-color: #6c757d;
-		}
-
-		.user-info {
-			text-align: left;
-			background: #f8f9fa;
-			padding: 15px;
+			border: 1px solid #ccc;
+			background-color: #f0f0f0;
+			text-decoration: none;
+			color: black;
 			border-radius: 5px;
-			margin-top: 20px;
-			word-break: break-all;
+		}
+
+		.button:hover {
+			background-color: #ddd;
 		}
 	</style>
 </head>
 
 <body>
+	<h1>User Management Dashboard</h1>
+	<p>Welcome, <span sec:authentication="name">User</span>!</p>
 
-	<div class="card">
-		<h1>Welcome to Client App</h1>
+	<div>
+		<a href="/user/profile" class="button">My Profile</a>
 
-		<div sec:authorize="isAuthenticated()">
-			<p>You are logged in as: <b sec:authentication="name"></b></p>
-
-			<!-- Navigation Buttons -->
-			<div>
-				<a href="/users" class="btn">👥 User Management</a>
-				<a href="/admin/dashboard" class="btn btn-admin">🛡️ Admin Dashboard</a>
-			</div>
-
-			<div class="user-info">
-				<h4>Your Roles:</h4>
-				<ul sec:authentication="authorities"></ul>
-			</div>
-
-			<br>
-			<form th:action="@{/logout}" method="post">
-				<button type="submit" class="btn btn-logout">Logout</button>
-			</form>
-		</div>
-
-		<div sec:authorize="!isAuthenticated()">
-			<p>You are not logged in.</p>
-			<a href="/oauth2/authorization/oidc-client" class="btn">Login with SSO</a>
+		<!-- Only visible to Admins -->
+		<div sec:authorize="hasAuthority('ROLE_ADMIN')" style="display:inline-block;">
+			<a href="/admin/users" class="button">User Management</a>
+			<a href="/admin/clients" class="button">Client Management</a>
 		</div>
 	</div>
 
+	<hr />
+	<form th:action="@{/logout}" method="post">
+		<button type="submit">Logout</button>
+	</form>
 </body>
 
 </html>

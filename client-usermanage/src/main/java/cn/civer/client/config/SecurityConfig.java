@@ -25,20 +25,26 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
 	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
+	private final cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
 
 	public SecurityConfig(
-			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository) {
+			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
+			cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
 		this.clientRegistrationRepository = clientRegistrationRepository;
+		this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
 	}
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests(authorize -> authorize
+						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
+						.requestMatchers("/error").permitAll()
 						.anyRequest().authenticated())
 				.oauth2Login(oauth2 -> oauth2
 						.userInfoEndpoint(userInfo -> userInfo
-								.oidcUserService(this.oidcUserService())))
+								.oidcUserService(this.oidcUserService()))
+						.successHandler(customAuthenticationSuccessHandler))
 				.logout(logout -> logout
 						.logoutSuccessHandler(oidcLogoutSuccessHandler()));
 		return http.build();

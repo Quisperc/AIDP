@@ -108,18 +108,13 @@
 
 <body>
 
-    <a href="/" class="back-link">← Back to Home</a> |
-    <a href="/profile" class="back-link">My Profile</a> |
-    <form th:action="@{/logout}" method="post" style="display:inline;">
-        <button type="submit"
-            style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; padding:0;">Logout</button>
-    </form>
+    <div th:replace="~{fragments/nav :: admin-nav}"></div>
 
     <h1>User Management</h1>
 
     <div class="form-container">
         <h3>Add New User</h3>
-        <form th:action="@{/users}" th:object="${newUser}" method="post">
+        <form th:action="@{/admin/users}" th:object="${newUser}" method="post">
             <input type="text" th:field="*{username}" placeholder="Username" required />
             <input type="password" th:field="*{password}" placeholder="Password" required />
             <select th:field="*{role}">
@@ -151,10 +146,10 @@
                 </td>
                 <td>
                     <!-- Edit Button -->
-                    <a th:href="@{/users/{id}/edit(id=${user.id})}" class="btn btn-edit">Edit</a>
+                    <a th:href="@{/admin/users/{id}/edit(id=${user.id})}" class="btn btn-edit">Edit</a>
 
                     <!-- Enable/Disable Toggle Form -->
-                    <form th:action="@{/users/{id}/status(id=${user.id})}" method="post" style="display:inline;">
+                    <form th:action="@{/admin/users/{id}/status(id=${user.id})}" method="post" style="display:inline;">
                         <button type="submit" th:class="${user.enabled} ? 'btn-disable' : 'btn-enable'"
                             th:text="${user.enabled} ? 'Disable' : 'Enable'"></button>
                     </form>

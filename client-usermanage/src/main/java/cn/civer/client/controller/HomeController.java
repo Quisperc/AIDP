@@ -1,36 +1,22 @@
 package cn.civer.client.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.stereotype.Controller; // Change to @Controller
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ResponseBody; // For JSON endpoints
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Map;
 
-@Controller // Use MVC Controller
+@Controller
 public class HomeController {
 
 	@GetMapping("/")
-	public String home(Model model, @AuthenticationPrincipal OidcUser principal) {
-		if (principal != null) {
-			// Role-based redirection
-			if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
-				return "redirect:/users";
-			} else {
-				return "redirect:/profile";
-			}
-		}
-		return "index"; // Keeps index as a fallback or landing for non-logged in (though SecurityConfig
-						// likely forces login)
+	public String home(org.springframework.security.core.Authentication authentication,
+			org.springframework.ui.Model model) {
+		// Just return the dashboard. Thymeleaf + Security Extras will handle
+		// visibility.
+		return "index";
 	}
 
-	@GetMapping("/admin/dashboard")
-	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
-	@ResponseBody // Keep this a simple API/JSON response for now
-	public Map<String, Object> adminDashboard() {
-		return Map.of("message", "Welcome Admin! You have access to this protected resource.");
-	}
 }

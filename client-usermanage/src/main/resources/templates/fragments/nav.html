@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+</head>
+
+<body>
+	<nav th:fragment="admin-nav" style="background-color: #f0f0f0; padding: 10px; margin-bottom: 20px;">
+		<strong>Admin Dashboard</strong> |
+		<a href="/">Home</a> |
+		<a href="/admin/users">User Management</a> |
+		<a href="/admin/clients">Client Management</a> |
+		<a href="/user/profile">My Profile</a>
+		<span style="float: right;">
+			<form th:action="@{/logout}" method="post" style="display:inline;">
+				<button type="submit">Logout</button>
+			</form>
+		</span>
+	</nav>
+</body>
+
+</html>

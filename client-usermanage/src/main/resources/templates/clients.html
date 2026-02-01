@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Client Management</title>
+</head>
+
+<body>
+	<div sec:authorize="hasAuthority('ROLE_ADMIN')">
+		<div th:replace="~{fragments/nav :: admin-nav}"></div>
+	</div>
+	<h1>Client Management</h1>
+
+	<div th:if="${message}" style="color: green">
+		<p th:text="${message}"></p>
+	</div>
+	<div th:if="${error}" style="color: red">
+		<p th:text="${error}"></p>
+	</div>
+
+	<h2>Register New Client</h2>
+	<form action="/admin/clients" method="post">
+		<div>
+			<label>Client ID:</label>
+			<input type="text" name="clientId" required />
+		</div>
+		<div>
+			<label>Client Secret (Raw):</label>
+			<input type="text" name="clientSecret" required />
+		</div>
+		<div>
+			<label>Client Name:</label>
+			<input type="text" name="clientName" required />
+		</div>
+		<div>
+			<label>Redirect URI:</label>
+			<input type="text" name="redirectUri" required />
+		</div>
+		<div>
+			<label>Post Logout URI:</label>
+			<input type="text" name="postLogoutRedirectUri" required />
+		</div>
+		<button type="submit">Register</button>
+	</form>
+
+
+</body>
+
+</html>

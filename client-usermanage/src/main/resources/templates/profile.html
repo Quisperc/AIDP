@@ -3,115 +3,18 @@
 
 <head>
 	<title>My Profile</title>
-	<style>
-		body {
-			font-family: sans-serif;
-			margin: 40px;
-			max-width: 600px;
-			margin: 0 auto;
-		}
-
-		.card {
-			border: 1px solid #ccc;
-			padding: 20px;
-			border-radius: 8px;
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-		}
-
-		.form-group {
-			margin-bottom: 15px;
-		}
-
-		label {
-			display: block;
-			margin-bottom: 5px;
-			font-weight: bold;
-		}
-
-		input {
-			width: 100%;
-			padding: 8px;
-			box-sizing: border-box;
-		}
-
-		button {
-			padding: 10px 15px;
-			background-color: #2196F3;
-			color: white;
-			border: none;
-			cursor: pointer;
-			border-radius: 4px;
-		}
-
-		button:hover {
-			background-color: #0b7dda;
-		}
-
-		.nav-links {
-			margin-bottom: 20px;
-		}
-
-		.nav-links a {
-			margin-right: 15px;
-			color: #333;
-			text-decoration: none;
-		}
-
-		.alert {
-			color: #856404;
-			background-color: #fff3cd;
-			padding: 10px;
-			border-radius: 4px;
-			margin-bottom: 15px;
-		}
-	</style>
 </head>
 
 <body>
-
-	<div class="nav-links">
-		<a href="/">← Home</a>
-		<!-- Only show User Management link if admin -->
-		<a href="/users" sec:authorize="hasAuthority('ROLE_ADMIN')">User Management</a>
+	<div sec:authorize="hasAuthority('ROLE_ADMIN')">
+		<div th:replace="~{fragments/nav :: admin-nav}"></div>
 	</div>
+	<h1>My Profile</h1>
+	<p>Username: <span sec:authentication="name">User</span></p>
+	<p>Roles: <span sec:authentication="principal.authorities">Roles</span></p>
 
-	<div class="card">
-		<h1>My Profile</h1>
-
-		<div class="alert">
-			Note: Changing your Username or Password will require you to log in again.
-		</div>
-
-		<form th:action="@{/profile}" th:object="${user}" method="post">
-
-			<div class="form-group">
-				<label>Current Username</label>
-				<input type="text" th:field="*{username}" required>
-				<small style="color: gray;">Current: <span sec:authentication="name"></span></small>
-			</div>
-
-			<div class="form-group">
-				<label>New Password (leave blank to keep current)</label>
-				<input type="password" th:field="*{password}" placeholder="Enter new password">
-			</div>
-
-			<div class="form-group">
-				<label>Your Roles (Read-only)</label>
-				<div style="padding: 8px; background: #eee;">
-					<span sec:authentication="authorities"></span>
-				</div>
-			</div>
-
-			<div class="form-group">
-				<button type="submit">Update Profile</button>
-			</div>
-		</form>
-
-		<form th:action="@{/logout}" method="post" style="margin-top: 10px;">
-			<button type="submit" style="background-color: #6c757d; width: 100%;">Logout</button>
-		</form>
-	</div>
-
+	<hr />
+	<p sec:authorize="!hasAuthority('ROLE_ADMIN')"><a href="/">Back to Dashboard</a></p>
 </body>
 
 </html>
