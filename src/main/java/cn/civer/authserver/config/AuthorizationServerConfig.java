@@ -137,6 +137,12 @@ public class AuthorizationServerConfig {
 			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
 		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService(
 				jdbcTemplate, registeredClientRepository);
+
+	@Bean
+	public org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService authorizationService(
+			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
+		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService(
+				jdbcTemplate, registeredClientRepository);
 	}
 
 }
