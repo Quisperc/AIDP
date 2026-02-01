@@ -9,24 +9,34 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 
 @Configuration
 public class FeignConfig {
 
+	private final OAuth2AuthorizedClientService authorizedClientService;
+
+	public FeignConfig(OAuth2AuthorizedClientService authorizedClientService) {
+		this.authorizedClientService = authorizedClientService;
+	}
+
 	@Bean
-	public RequestInterceptor requestInterceptor(OAuth2AuthorizedClientService clientService) {
+	public RequestInterceptor requestInterceptor() {
 		return new RequestInterceptor() {
 			@Override
 			public void apply(RequestTemplate template) {
 				Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 				if (authentication instanceof OAuth2AuthenticationToken) {
 					OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
-					OAuth2AuthorizedClient client = clientService.loadAuthorizedClient(
+					OAuth2AuthorizedClient client = authorizedClientService.loadAuthorizedClient(
 							oauthToken.getAuthorizedClientRegistrationId(),
 							oauthToken.getName());
 
-					if (client != null && client.getAccessToken() != null) {
-						template.header("Authorization", "Bearer " + client.getAccessToken().getTokenValue());
+					if (client != null) {
+						OAuth2AccessToken accessToken = client.getAccessToken();
+						if (accessToken != null) {
+							template.header("Authorization", "Bearer " + accessToken.getTokenValue());
+						}
 					}
 				}
 			}

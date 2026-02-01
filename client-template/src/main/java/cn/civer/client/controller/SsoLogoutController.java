@@ -17,9 +17,17 @@ public class SsoLogoutController {
 		this.sessionRegistry = sessionRegistry;
 	}
 
+	/**
+	 * Receive broadcast logout notification from Auth Server.
+	 * Invalidates all sessions for the given username.
+	 */
 	@org.springframework.beans.factory.annotation.Value("${app.sso-secret}")
 	private String expectedSecret;
 
+	/**
+	 * Receive broadcast logout notification from Auth Server.
+	 * Invalidates all sessions for the given username.
+	 */
 	@PostMapping("/api/sso-logout")
 	public String ssoLogout(@RequestParam("username") String username,
 			@org.springframework.web.bind.annotation.RequestHeader(value = "X-SSO-Secret", required = false) String secret) {
@@ -33,22 +41,24 @@ public class SsoLogoutController {
 
 		List<Object> allPrincipals = sessionRegistry.getAllPrincipals();
 		for (Object principal : allPrincipals) {
-			if (principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
-				org.springframework.security.oauth2.core.oidc.user.OidcUser user = (org.springframework.security.oauth2.core.oidc.user.OidcUser) principal;
-				if (user.getName().equals(username) || user.getPreferredUsername().equals(username)) {
-					expireUserSessions(principal);
-				}
-			} else if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
-				org.springframework.security.core.userdetails.UserDetails user = (org.springframework.security.core.userdetails.UserDetails) principal;
-				if (user.getUsername().equals(username)) {
-					expireUserSessions(principal);
-				}
-			} else if (principal.toString().equals(username)) {
+			if (isUser(principal, username)) {
 				expireUserSessions(principal);
 			}
 		}
 
 		return "Logged out";
+	}
+
+	private boolean isUser(Object principal, String username) {
+		if (principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
+			org.springframework.security.oauth2.core.oidc.user.OidcUser user = (org.springframework.security.oauth2.core.oidc.user.OidcUser) principal;
+			return user.getName().equals(username) || user.getPreferredUsername().equals(username);
+		} else if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+			return ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername()
+					.equals(username);
+		} else {
+			return principal.toString().equals(username);
+		}
 	}
 
 	private void expireUserSessions(Object principal) {

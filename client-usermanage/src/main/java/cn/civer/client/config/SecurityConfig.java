@@ -52,8 +52,12 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
 						.requestMatchers("/error").permitAll()
+						.requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
+								"/api/sso-logout"))
+						.permitAll()
 						.anyRequest().authenticated())
-				.csrf(csrf -> csrf.ignoringRequestMatchers("/api/sso-logout"))
+				.csrf(csrf -> csrf.ignoringRequestMatchers(
+						new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/sso-logout")))
 				.oauth2Login(oauth2 -> oauth2
 						.userInfoEndpoint(userInfo -> userInfo
 								.oidcUserService(this.oidcUserService()))
@@ -70,6 +74,7 @@ public class SecurityConfig {
 						.deleteCookies(cookieName))
 				.sessionManagement(session -> session
 						.maximumSessions(1)
+						.expiredUrl("/")
 						.sessionRegistry(sessionRegistry()));
 		return http.build();
 	}

@@ -15,6 +15,9 @@ public class SsoLogoutSuccessHandler implements LogoutSuccessHandler {
 
 	private final JdbcTemplate jdbcTemplate;
 
+	@org.springframework.beans.factory.annotation.Value("${app.auth.sso-secret}")
+	private String ssoSecret;
+
 	public SsoLogoutSuccessHandler(JdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
@@ -66,10 +69,12 @@ public class SsoLogoutSuccessHandler implements LogoutSuccessHandler {
 				// Send async notifications
 				java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
 				for (String notifyUrl : notifyUrls) {
+					// ... inside broadcast loop
 					System.out.println("Broadcasting logout to: " + notifyUrl);
 					java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
 							.uri(java.net.URI.create(notifyUrl))
 							.header("Content-Type", "application/x-www-form-urlencoded")
+							.header("X-SSO-Secret", ssoSecret)
 							.POST(java.net.http.HttpRequest.BodyPublishers.ofString("username=" + principalName))
 							.build();
 

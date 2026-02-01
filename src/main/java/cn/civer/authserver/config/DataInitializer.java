@@ -13,16 +13,16 @@ import java.util.UUID;
 @Configuration
 public class DataInitializer {
 
-	@org.springframework.beans.factory.annotation.Value("${app.client.client-id}")
+	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.client-id}")
 	private String clientId;
 
-	@org.springframework.beans.factory.annotation.Value("${app.client.client-secret}")
+	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.client-secret}")
 	private String clientSecret;
 
-	@org.springframework.beans.factory.annotation.Value("${app.client.redirect-uris}")
+	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.redirect-uris}")
 	private String[] redirectUris;
 
-	@org.springframework.beans.factory.annotation.Value("${app.client.post-logout-redirect-uri}")
+	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.post-logout-redirect-uri}")
 	private String postLogoutRedirectUri;
 
 	@Bean

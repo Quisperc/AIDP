@@ -1,4 +1,4 @@
-package cn.civer.template.controller;
+package cn.civer.client.controller;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -12,9 +12,9 @@ public class HomeController {
 	@GetMapping("/")
 	public String index(Model model, @AuthenticationPrincipal OidcUser principal) {
 		if (principal != null) {
-			model.addAttribute("username", principal.getPreferredUsername());
+			model.addAttribute("username", principal.getName());
 			model.addAttribute("email", principal.getEmail());
-			model.addAttribute("attributes", principal.getAttributes());
+			model.addAttribute("claims", principal.getClaims());
 			model.addAttribute("authorities", principal.getAuthorities());
 		}
 		return "index";

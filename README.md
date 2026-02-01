@@ -179,33 +179,7 @@ INSERT INTO oauth2_registered_client (
 
 ---
 
-## 📦 快速接入 (Client Template)
 
-为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
-
-### 接入步骤 (5分钟完成)
-
-1.  **复制项目**:
-    *   复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）。
-
-2.  **修改 `pom.xml`**:
-    *   将 `artifactId` 和 `name` 修改为 `client-oa`。
-
-3.  **修改配置 (`application.yml`)**:
-    *   **Port**: 修改 `server.port` (例如 `8082`)。
-    *   **Cookie**: 修改 `server.servlet.session.cookie.name` (例如 `OA_SESSIONID`)，防止 Cookie 冲突。
-    *   **Client ID**: 修改 `client-id` (例如 `oa-system`)。
-    *   **Redirect URI**: 确保端口与 Port 一致 (例如 `http://127.0.0.1:8082/...`)。
-
-4.  **注册数据库**:
-    *   运行 `src/test/java/.../ClientSqlGenerator.java` 生成 SQL。
-    *   将 SQL 执行到 Auth Server 的数据库中。
-
-5.  **启动开发**:
-    *   模板已内置最核心的 `SecurityConfig` (自动适配 Auth Server 地址) 和 `HomeController`。
-    *   您可以直接开始编写业务逻辑。
-
----
 
 ## 🔧 配置文件说明 (YAML Configuration)
 
@@ -224,9 +198,15 @@ server:
 # 注意：这只是为了首次启动自动创建客户端，数据存入数据库后，此处配置不再影响已存在的客户端
 app:
   auth:
-    client-id: client-app      # 客户端标识
-    client-secret: secret      # 客户端密钥
-    redirect-uri: http://127.0.0.1:8081/login/oauth2/code/oidc-client # 合法回调地址
+    # Service Security (Shared Secret)
+    sso-secret: d090e0c9-663c-4573-b6d3-2171ee6e068e
+
+    # 初始客户端配置 (用于启动时自动创建默认 Client)
+    initial-client:
+        client-id: client-app
+        client-secret: secret
+        redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client
+        post-logout-redirect-uri: http://127.0.0.1:8080/login
 ```
 
 ### 2. 子系统 (Client App)
@@ -240,6 +220,11 @@ server:
       cookie:
         name: CLIENT_SESSIONID # 【重要】自定义 Session Cookie 名称
 
+app:
+  sso-secret: d090e0c9-663c-4573-b6d3-2171ee6e068e # 必须与 Auth Server 一致
+  auth-server-url: http://127.0.0.1:8080
+  base-url: http://127.0.0.1:8081
+
 spring:
   security:
     oauth2:
@@ -247,12 +232,12 @@ spring:
         registration:
           oidc-client:        # 注册名称 (Registration ID)
             provider: auth-server
-            client-id: client-app       # 对应 Auth Server 配置的 app.auth.client-id
-            client-secret: secret       # 对应 Auth Server 配置的 app.auth.client-secret
+            client-id: client-app       # 对应 Auth Server 配置的 app.auth.initial-client.client-id
+            client-secret: secret       # 对应 Auth Server 配置的 app.auth.initial-client.client-secret
             # 授权模式：授权码 + 刷新令牌
             authorization-grant-type: authorization_code
             # 回调地址模板，{registrationId} 会自动替换为 oidc-client
-            redirect-uri: "http://127.0.0.1:8081/login/oauth2/code/{registrationId}"
+            redirect-uri: "http://127.0.0.1:8081/login/oauth2/code/oidc-client"
             scope:
               - openid
               - profile
@@ -261,6 +246,64 @@ spring:
             # 【关键】认证中心地址 (Issuer URI)。Client 会请求 /.well-known/openid-configuration 获取端点信息
             issuer-uri: http://127.0.0.1:8080
 ```
+
+---
+
+## 📦 快速接入 (Client Template)
+
+为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
+
+该模板已预置了**最核心的安全配置**，包括：
+1.  **OAuth2 登录**: 自动对接 Auth Server。
+2.  **动态退出**: 包含了 **单客户端退出** 和 **SSO 广播退出** 的完整实现。
+3.  **防 Cookie 冲突**: 预置了独立的 Session 配置。
+
+### 接入步骤 (5分钟完成)
+
+1.  **复制项目**:
+    *   复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）。
+
+2.  **修改 `pom.xml`**:
+    *   将 `artifactId` 和 `name` 修改为 `client-oa`。
+
+3.  **修改配置 (`application.yml`)**:
+    *   **Port**: 修改 `server.port` (例如 `8082`)。
+    *   **Cookie**: 修改 `server.servlet.session.cookie.name` (例如 `OA_SESSIONID`)，防止 Cookie 冲突。
+    *   **Client ID**: 修改 `client-id` (例如 `oa-system`)。
+    *   **Redirect URI**: 确保端口与 Port 一致 (例如 `http://127.0.0.1:8082/...`)。
+    *   **Base URL**: 修改 `app.base-url` (例如 `http://127.0.0.1:8082`)。
+
+4.  **注册数据库**:
+    *   运行 `src/test/java/.../ClientSqlGenerator.java` 生成 SQL。
+    *   将 SQL 执行到 Auth Server 的数据库中。
+
+5.  **启动开发**:
+    *   直接运行 `ClientApplication`，访问 `http://127.0.0.1:8082` 即可看到效果。
+
+---
+
+## 🔐 退出机制详解 (Logout Architecture)
+
+系统实现了两种不同层级的退出逻辑，以满足企业级业务需求：
+
+### 1. SSO 全局退出 (Global Logout)
+*   **触发**: 在 SSO (8080) 页面点击退出。
+*   **行为**: **"核弹级清场"**
+    *   **Clear Consent**: 立即删除该用户在数据库中的所有授权记录 (`oauth2_authorization_consent`)。
+    *   **Broadcast**: Auth Server 广播通知所有已注册 Client 的 `/api/sso-logout` 接口。
+        *   **安全加固**: 请求头携带 `X-SSO-Secret`，防止恶意调用。
+    *   **Invalidate**: 各个 Client 验证 Secret 后，利用 `SessionRegistry` 立即销毁该用户的本地 Session。
+*   **效果**: 所有系统同时掉线。用户下次刷新页面时，会自动跳转回首页（而不是显示 Session Expired 错误页）。
+
+### 2. 子系统退出 (Single Client Logout)
+*   **触发**: 在子系统 (如 8081) 点击退出。
+*   **行为**: **"定点清除"**
+    *   **Local Logout**: 子系统销毁自己的本地 Session。
+    *   **Revoke Consent**: 子系统跳转到 `8080/oauth2/revoke-consent`，只删除**当前子系统**的授权记录。
+    *   **Keep SSO**: Auth Server 的 Session **保留**。
+*   **效果**:
+    *   **当前系统**: 下次进入时，因为授权已删，会跳转 Auth Server，虽无需输密码（SSO 在），但**必须重新点击“同意授权”**。
+    *   **其他系统**: 保持登录状态，不受影响。
 
 ---
 
