@@ -1,67 +1,26 @@
-# Spring Boot 3 统一认证系统 (SSO)
+# Spring Boot 3 OIDC 统一认证系统 (SSO)
 
-本项目演示了一个完整的单点登录 (SSO) 解决方案，包含**认证中心 (Auth Server)** 和 **接入子系统 (Client App)**。项目基于 **Spring Boot 3.2** 和 **Spring Security 6** 构建，使用标准 **OAuth2 / OpenID Connect (OIDC)** 协议。
+本项目演示了一个基于 **Spring Boot 3.2** 和 **Spring Authorization Server (SAS)** 的完整单点登录 (SSO) 解决方案。系统实现了标准的 **OIDC (OpenID Connect)** 协议，支持多客户端接入、统一登录、统一退出（Back-Channel Logout）。
 
 ## 🏗 系统架构
 
-系统由两个独立运行的服务组成：
+系统由三个独立模块组成：
 
-1.  **认证中心 (Auth Server)**
+1.  **认证中心 (Auth Server)** - `auth-server`
     *   **端口**: `8080`
-    *   **角色**: Identity Provider (IdP)。负责用户管理、登录认证、颁发 Token (JWT)。
-    *   **核心技术**: Spring Authorization Server, Spring Data JPA, H2 Database。
-2.  **子系统 (Client App)**
+    *   **职责**:
+        *   **IdP (Identity Provider)**: 负责用户认证、颁发 JWT (Check Token)。
+        *   **Resource Server**: 提供 `/api/users` 等管理接口。
+        *   **OIDC Provider**: 提供标准 OIDC 端点（Discovery, JWKS, UserInfo）。
+    *   **存储**: PostgreSQL (用户、客户端、授权信息持久化)。
+
+2.  **管理后台 (Client UserManage)** - `client-usermanage`
     *   **端口**: `8081`
-    *   **角色**: Service Provider / Client。依赖认证中心进行登录，并根据 Token 中的信息进行权限控制。
-    *   **核心技术**: Spring OAuth2 Client, Spring Web。
+    *   **职责**: 系统管理员后台。通过 OAuth2 登录，使用 Feign 调用 Auth Server API 管理用户和客户端。
 
----
-
-## 📂 代码结构说明
-
-### 1. 认证中心 (Auth Server)
-路径: `src/main/java/cn/civer/authserver`
-
-该模块是 SSO 的核心，负责处理所有协议细节。
-
-*   **`config/AuthorizationServerConfig.java` (核心配置)**
-    *   **功能**: 配置 OAuth2 授权服务器的核心组件。
-    *   **`securityFilterChain`**: 定义 OIDC 协议端点（如 `/oauth2/token`）的安全拦截链。
-    *   **`registeredClientRepository`**: 注册合法的客户端（Client App）。当前配置为内存模式，定义了 `client-id`, `client-secret`, `redirect-uri` 等。
-    *   **`jwkSource`**: 生成 RSA 密钥对，用于对 JWT (ID Token / Access Token) 进行签名。
-    *   **`jwtTokenCustomizer`**: **关键逻辑**。在生成 Token 时，拦截并注入自定义 Claims。我们将用户的 `roles` (如 `ROLE_ADMIN`) 放入 Token 中，以便客户端能获取权限信息。
-
-*   **`service/CustomUserDetailsService.java`**
-    *   **功能**: 实现 Spring Security 标准接口。从数据库加载用户信息，并转换为框架可识别的 `UserDetails` 对象。
-
-*   **`config/DataInitializer.java`**
-    *   **功能**: 系统启动时，自动向 H2 内存数据库写入两个测试用户 (`admin` 和 `user`)。
-
-*   **`resources/application.yml`**
-    *   **关键配置**: 设置 `server.servlet.session.cookie.name = AUTH_SESSIONID`。这是为了防止在本地 (`localhost`) 运行时，两个服务都使用默认的 `JSESSIONID` 导致 Cookie 覆盖冲突。
-
-### 2. 接入子系统 (Client App)
-路径: `client-app/src/main/java/cn/civer/client`
-
-该模块代表需要接入 SSO 的业务系统。
-
-*   **`config/SecurityConfig.java` (核心配置)**
-    *   **功能**: 配置 OAuth2 登录逻辑和权限映射。
-    *   **`oidcUserService`**: **关键逻辑**。
-        1.  当用户登录成功拿到 Token 后，该方法会被调用。
-        2.  它从 Token 的 Claims 中提取 `roles` 字段（这是一个自定义字段，由 Auth Server 注入）。
-        3.  将这些角色转换为 Spring Security 的 `GrantedAuthority`（权限对象）。
-        4.  **作用**: 让子系统能识别 "你是管理员" 还是 "普通用户"，从而使用 `@PreAuthorize` 进行接口保护。
-
-*   **`controller/HomeController.java`**
-    *   **功能**: 演示页面。
-    *   `/`: 显示当前登录用户的详细信息（JSON）。
-    *   `/admin/dashboard`: 受保护接口，只有拥有 `ROLE_ADMIN` 权限的用户才能访问。
-
-*   **`resources/application.yml`**
-    *   **关键配置**:
-        *   `spring.security.oauth2.client`: 配置 Provider 地址 (`http://127.0.0.1:8080`) 和 Client 凭证。
-        *   `cookie.name = CLIENT_SESSIONID`: 同样修改 Cookie 名称以避免冲突。
+3.  **接入示例子系统 (Client Template)** - `client-template`
+    *   **端口**: `8089` (默认)
+    *   **职责**: 为新业务系统提供“开箱即用”的标准接入模板。
 
 ---
 
@@ -79,173 +38,81 @@
 
 ---
 
-## 🚀 运行与测试指南
+## 🚀 快速启动指南
 
-### 环境准备
+### 1. 环境准备
 *   JDK 17+
 *   Maven 3.x
+*   PostgreSQL 数据库 (创建数据库 `authdb`)
 
-### 第一步：启动认证中心
-在项目根目录 (`c:\Code\AIDP`) 打开终端运行：
-```bash
-mvn spring-boot:run
-```
-等待看到 `Started AuthServerApplication`。
-
-### 第二步：启动子系统
-打开一个新的终端，进入 client 目录 (`c:\Code\AIDP\client-app`) 运行：
-```bash
-cd client-app
-mvn spring-boot:run
-```
-等待看到 `Started ClientApplication`。
-
-### 第三步：验证 SSO 流程
-**⚠️ 注意：请全程使用 `127.0.0.1` 访问，不要使用 `localhost`，以避免 Cookie 跨域问题。**
-
-#### 场景 1：管理员登录（权限校验成功）
-1.  浏览器（建议无痕模式）访问：`http://127.0.0.1:8081`
-2.  跳转登录页，通过：`admin` / `password` 登录。
-3.  登录成功，返回子系统首页，页面显示 JSON 中包含 `"roles": ["ROLE_ADMIN"]`。
-4.  访问受保护接口：`http://127.0.0.1:8081/admin/dashboard`
-    *   **结果**: 显示 `{"message": "Welcome Admin!"}` —— **验证成功！**
-
-#### 场景 2：普通用户登录（权限拒绝）
-1.  退出登录或新开无痕窗口。
-2.  通过：`user` / `password` 登录。
-3.  访问受保护接口：`http://127.0.0.1:8081/admin/dashboard`
-    *   **结果**: 显示 **WhiteLabel Error Page (Status 403 Forbidden)**。
-    *   **说明**: **这是符合预期的！** 因为 `user` 用户没有管理员权限，系统正确拦截了请求。
-
----
-
-## ❓ 常见问题排查 (Troubleshooting)
-
-### 1. `[authorization_request_not_found]` 错误
-*   **常见原因 1 (并发登录)**: 您是否在**同一个浏览器**的**不同标签页**同时尝试登录两个账号？
-    *   **原理**: Spring Security 默认将“正在进行的登录请求”保存在 Session 中。如果您开启了第二个登录流程，它会覆盖掉第一个流程的缓存。当第一个流程回调回来时，发现 Session 里存的是第二个流程的信息，导致匹配失败。
-    *   **解决**: 测试多账号时，请务必使用 **无痕模式 (Incognito)** 或 **不同的浏览器**（如 Chrome 和 Edge 同时用）。
-*   **常见原因 2 (Cookie 冲突)**: 见前文，需确保 Cookie 名称不冲突且 IP 统一。
-
-### 2. 为什么 `user` 访问 `/admin/dashboard` 报错？
-*   这不是系统错误，而是**权限控制生效**的证明。Spring Security 默认对于 403 (禁止访问) 错误会显示白色错误页。如果需要更友好的提示，可以后续添加全局异常处理器。
-
----
-
-## 🔌 如何配置新的客户端 (生产模式)
-
-在切换到 PostgreSQL 数据库模式 (`JdbcRegisteredClientRepository`) 后，新增客户端不再需要修改 Java 代码，而是直接**向数据库插入 SQL 记录**。
-
-### SQL 模板
-您可以直接在数据库工具中执行以下 SQL 来添加一个新的客户端（例如 `order-app`）：
-
-```sql
-INSERT INTO oauth2_registered_client (
-    id, client_id, client_id_issued_at, client_secret, client_secret_expires_at, 
-    client_name, client_authentication_methods, authorization_grant_types, 
-    redirect_uris, post_logout_redirect_uris, scopes, client_settings, token_settings
-) VALUES (
-    'uuid-generated-id-2',                         -- ID (主键)
-    'order-app',                                   -- Client ID
-    NOW(),                                         -- Issued At
-    '$2a$10$r.7...hashed.secret...',               -- Client Secret (BCrypt加密后的 'secret')
-    NULL,                                          -- Secret Expires At
-    'Order Management System',                     -- Client Name
-    'client_secret_basic',                         -- Auth Methods
-    'authorization_code,refresh_token',            -- Grant Types
-    'http://127.0.0.1:8082/login/oauth2/code/oidc-client', -- Redirect URI (注意端口)
-    'http://127.0.0.1:8080/login',                 -- Post Logout Redirect URI (允许跳转回 Auth Server 登录页)
-    'openid,profile',                              -- Scopes
-    '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-authorization-consent":true,"settings.client.require-proof-key":false}', -- Client Settings (Json)
-    '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.access-token-time-to-live":["java.time.Duration",1800.000000000]}'  -- Token Settings (Json)
-);
-```
-
-### 🛠️ 自动生成 SQL 脚本 (Generator Script)
-为了方便生成上述 SQL（特别是加密后的 Secret），我们提供了一个 Java 小工具。
-1.  找到文件：`src/test/java/cn/civer/authserver/ClientSqlGenerator.java`。
-2.  在 IDE (VS Code / IntelliJ) 中运行该文件的 `main` 方法。
-3.  根据控制台提示输入：
-    *   Client ID (如 `oa-system`)
-    *   Client Secret (明文，如 `123456`)
-    *   App Port (如 `8082`) - *脚本会自动帮您拼接好 Redirect URI。*
-4.  脚本会生成完整的 `INSERT INTO` 语句，直接复制到数据库执行即可。
-
-**⚠️ 注意事项**:
-1.  **Client Secret**: 必须是 **BCrypt 加密** 后的字符串。也就是 `DataInitializer` 中 `passwordEncoder.encode("secret")` 的结果。
-    *   `secret` 的密文 (strength 10) 参考: `$2a$10$HuWl.U9C5.1/.Fq.pY.a..v/V.u.t.u.t.u.t.u.t.u.t.u.t.` (请尽量生成新的)
-2.  **Redirect URI**: 必须严格匹配子系统的配置。
-3.  **Settings**: 字段是 JSON 格式的序列化数据，建议直接通过 `DataInitializer` 运行一次生成参考数据，或者复制现有数据进行修改。
-
----
-
-
-
-## 🔧 配置文件说明 (YAML Configuration)
-
-### 1. 认证中心 (Auth Server)
-文件：`src/main/resources/application.yml`
-
+### 2. 数据库配置
+在 `src/main/resources/application.yml` 中配置数据库连接。
+**🔒 安全建议**: 不要在 `application.yml` 中直接提交真实密码。请在项目根目录创建 `application-secret.yml`（已加入 `.gitignore`），并在其中覆盖敏感配置：
 ```yaml
-server:
-  port: 8080	               # 服务端口
-  servlet:
-    session:
-      cookie:
-        name: AUTH_SESSIONID   # 【重要】自定义 Session Cookie 名称
-
-# 自定义客户端配置 (用于 DataInitializer 启动时自动初始化数据)
-# 注意：这只是为了首次启动自动创建客户端，数据存入数据库后，此处配置不再影响已存在的客户端
-app:
-  auth:
-    # Service Security (Shared Secret)
-    sso-secret: d090e0c9-663c-4573-b6d3-2171ee6e068e
-
-    # 初始客户端配置 (用于启动时自动创建默认 Client)
-    initial-client:
-        client-id: client-app
-        client-secret: secret
-        redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client
-        post-logout-redirect-uri: http://127.0.0.1:8080/login
-```
-
-### 2. 子系统 (Client App)
-文件：`client-app/src/main/resources/application.yml`
-
-```yaml
-server:
-  port: 8081                   # 服务端口
-  servlet:
-    session:
-      cookie:
-        name: CLIENT_SESSIONID # 【重要】自定义 Session Cookie 名称
-
-app:
-  sso-secret: d090e0c9-663c-4573-b6d3-2171ee6e068e # 必须与 Auth Server 一致
-  auth-server-url: http://127.0.0.1:8080
-  base-url: http://127.0.0.1:8081
-
 spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          oidc-client:        # 注册名称 (Registration ID)
-            provider: auth-server
-            client-id: client-app       # 对应 Auth Server 配置的 app.auth.initial-client.client-id
-            client-secret: secret       # 对应 Auth Server 配置的 app.auth.initial-client.client-secret
-            # 授权模式：授权码 + 刷新令牌
-            authorization-grant-type: authorization_code
-            # 回调地址模板，{registrationId} 会自动替换为 oidc-client
-            redirect-uri: "http://127.0.0.1:8081/login/oauth2/code/oidc-client"
-            scope:
-              - openid
-              - profile
-        provider:
-          auth-server:
-            # 【关键】认证中心地址 (Issuer URI)。Client 会请求 /.well-known/openid-configuration 获取端点信息
-            issuer-uri: http://127.0.0.1:8080
+  datasource:
+    password: YOUR_REAL_PASSWORD
 ```
+
+### 3. 初始化数据 (Scripts)
+所有 SQL 脚本和工具现已归档至 `scripts/` 目录。
+
+1.  **表结构**: 系统启动时会自动由 Hibernate 创建/更新 (`ddl-auto: update`)。
+2.  **初始数据**: `scripts/insert_client_user.sql` 和 `scripts/insert_clients.sql` 提供了初始客户端数据。
+3.  **生成客户端 SQL**:
+    *   运行 `scripts/ClientSqlGenerator.java` (main 方法)。
+    *   按提示输入 Client ID、Secret 和 端口。
+    *   它会自动生成包含 **BCrypt 加密 Secret** 和 **标准 OIDC 配置** 的 `INSERT` 语句。
+
+### 4. 启动服务
+```bash
+# 1. 启动认证中心 (8080)
+mvn spring-boot:run -pl . 
+
+# 2. 启动管理后台 (8081)
+cd client-usermanage
+mvn spring-boot:run
+
+# 3. 启动示例客户端 (8089)
+cd client-template
+mvn spring-boot:run
+```
+
+---
+
+## 🔐 核心功能特性
+
+### 1. 客户端注册 (Client Registration)
+不再支持内存模式。所有客户端必须注册在数据库 `oauth2_registered_client` 表中。
+*   **管理方式**:
+    *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients` 进行图形化注册。
+    *   **手动**: 使用 `scripts/ClientSqlGenerator.java` 生成 SQL 插入。
+
+### 2. OIDC Back-Channel Logout (统一退出)
+实现了 OIDC 标准的后端广播退出机制，比传统的 Session 清除更安全、彻底。
+
+*   **流程**:
+    1.  用户在任意子系统点击退出。
+    2.  Auth Server 收到退出请求，清除 SSO Session。
+    3.  Auth Server 根据数据库记录，向 **所有** 该用户登录过的子系统发送 HTTP POST 请求 (`/api/sso-logout`)。
+    4.  请求体包含一个 **Logout Token** (JWT)，由 Auth Server 私钥签名。
+    5.  子系统验证 JWT 签名和 Claims (Audience, Issuer)，验证通过后销毁本地 Session。
+
+### 3. 配置隐私保护
+*   `application.yml` 默认通过 `spring.config.import: optional:file:./application-secret.yml` 加载外部配置。
+*   开发人员应在本地创建 `application-secret.yml` 存放 `datasource.password` 等敏感信息，该文件不会被提交到 Git。
+
+---
+
+## � 目录结构
+
+*   `src/main/java/cn/civer/authserver` - **认证中心源码**
+*   `client-usermanage/` - **管理后台源码**
+*   `client-template/` - **标准客户端模板** (复制此目录即可开发新系统)
+*   `scripts/` - **SQL 脚本与工具类**
+    *   `ClientSqlGenerator.java`: 交互式 SQL 生成器
+    *   `insert_clients.sql`: 初始数据备份
+*   `application-secret.yml` - (需手动创建) 本地敏感配置
 
 ---
 
@@ -274,11 +141,11 @@ spring:
     *   **Base URL**: 修改 `app.base-url` (例如 `http://127.0.0.1:8082`)。
 
 4.  **注册数据库**:
-    *   运行 `src/test/java/.../ClientSqlGenerator.java` 生成 SQL。
-    *   将 SQL 执行到 Auth Server 的数据库中。
-
+    *   在 Auth Server 数据库中注册该客户端（使用 Generator 或 管理后台）。
+    *   Generator：运行 `scripts/ClientSqlGenerator.java` 生成 SQL。
+    *   管理后台：访问 `http://127.0.0.1:8081/admin/clients`。
 5.  **启动开发**:
-    *   直接运行 `ClientApplication`，访问 `http://127.0.0.1:8082` 即可看到效果。
+    *   启动即可加入 SSO 生态。
 
 ---
 
@@ -476,8 +343,3 @@ public RegisteredClientRepository registeredClientRepository() {
 3.  **UI/UX 优化**
     *   **排序**: 用户列表强制按 ID 排序，防止刷新后乱序。
     *   **交互**: 修复了按钮点击区域过小的问题，优化了表格布局。
-
-
-
-
-

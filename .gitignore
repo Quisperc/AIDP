@@ -1,7 +1,50 @@
-/.idea
-target/**
-.mvn/**
-.vscode/**
-.DS_Store
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
 *.iml
-application.yml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbproject/Makefile.impl
+/nbproject/src-native.inc
+/nbproject/test.inc
+/nbproject/test-impl.inc
+/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Legacy/Misc ###
+bin/
+logs/
+*.log
+
+### Spring Boot ###
+# Ignore local override files if any
+application-local.yml
+application-secret.yml

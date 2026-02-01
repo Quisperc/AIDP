@@ -1,0 +1,38 @@
+server:
+  port: 8089                   # [MODIFY] Change this for each new service (e.g. 8082, 8083)
+  servlet:
+    session:
+      cookie:
+        name: CLIENT_TEMPLATE_SESSIONID # [MODIFY] Unique session cookie name to avoid conflicts
+
+logging:
+  level:
+    org.springframework.security: INFO
+
+spring:
+  application:
+    name: client-template           # [MODIFY] App Name
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc-client:
+            provider: auth-server
+            # [MODIFY] Client ID & Secret matching Auth Server config
+            client-id: client-template
+            client-secret: secret
+            authorization-grant-type: authorization_code
+            # [MODIFY] Ensure port matches server.port
+            redirect-uri: "http://127.0.0.1:8089/login/oauth2/code/oidc-client"
+            scope:
+              - openid
+              - profile
+        provider:
+          auth-server:
+            issuer-uri: ${app.auth-server-url}
+
+# Custom Properties for dynamic configuration
+app:
+  auth-server-url: http://127.0.0.1:8080
+  # [MODIFY] Ensure this matches server.port
+  base-url: http://127.0.0.1:8089

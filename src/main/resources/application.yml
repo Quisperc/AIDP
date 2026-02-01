@@ -1,0 +1,38 @@
+server:
+  port: 8080                   # 服务端口：Auth Server 运行在 8080
+  servlet:
+    session:
+      cookie:
+        name: AUTH_SESSIONID   # 【关键】自定义 Cookie 名称，隔离会话
+
+spring:
+  config:
+    import: optional:file:./application-secret.yml
+  application:
+    name: auth-server
+  datasource:
+    url: jdbc:postgresql://localhost:5432/authdb # 数据库连接地址
+    username: username            # 数据库用户名
+    password: password   # 数据库密码
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always # always: 每次启动尝试运行 schema.sql (如果存在)
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update         # update: 自动根据 Entity 更新表结构，不会删除数据
+    show-sql: true             # 控制台打印 SQL，方便调试
+
+app:
+  auth:
+    # Service Security
+
+
+    # Initial Client Data (Auto-registered on startup if missing)
+    initial-client:
+        client-id: client-usermanage
+        client-secret: secret
+        # Supports multiple URIs separated by comma
+        redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client,http://127.0.0.1:8081/authorized
+        post-logout-redirect-uri: http://127.0.0.1:8080/login
