@@ -30,6 +30,15 @@ public class SecurityConfig {
 	@org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.name}")
 	private String cookieName;
 
+	@org.springframework.beans.factory.annotation.Value("${app.auth-server-url}")
+	private String authServerUrl;
+
+	@org.springframework.beans.factory.annotation.Value("${app.base-url}")
+	private String baseUrl;
+
+	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
+	private String clientId;
+
 	public SecurityConfig(
 			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
 			cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
@@ -44,16 +53,30 @@ public class SecurityConfig {
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
 						.requestMatchers("/error").permitAll()
 						.anyRequest().authenticated())
+				.csrf(csrf -> csrf.ignoringRequestMatchers("/api/sso-logout"))
 				.oauth2Login(oauth2 -> oauth2
 						.userInfoEndpoint(userInfo -> userInfo
 								.oidcUserService(this.oidcUserService()))
 						.successHandler(customAuthenticationSuccessHandler))
 				.logout(logout -> logout
-						.logoutSuccessUrl("/") // Local logout only based on requirement
+						.logoutRequestMatcher(
+								new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/logout"))
+						// Local logout + Redirect to Auth Server to revoke consent (but keep SSO
+						// session)
+						.logoutSuccessUrl(String.format("%s/oauth2/revoke-consent?client_id=%s&redirect_uri=%s/",
+								authServerUrl, clientId, baseUrl))
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
-						.deleteCookies(cookieName));
+						.deleteCookies(cookieName))
+				.sessionManagement(session -> session
+						.maximumSessions(1)
+						.sessionRegistry(sessionRegistry()));
 		return http.build();
+	}
+
+	@Bean
+	public org.springframework.security.core.session.SessionRegistry sessionRegistry() {
+		return new org.springframework.security.core.session.SessionRegistryImpl();
 	}
 
 	private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {

@@ -38,6 +38,9 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class AuthorizationServerConfig {
 
+	@org.springframework.beans.factory.annotation.Autowired
+	private cn.civer.authserver.handler.SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
+
 	@Bean
 	@Order(1)
 	public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -68,7 +71,7 @@ public class AuthorizationServerConfig {
 						.loginPage("/login")
 						.permitAll())
 				.logout((logout) -> logout
-						.logoutSuccessUrl("/?logout")
+						.logoutSuccessHandler(ssoLogoutSuccessHandler)
 						.permitAll())
 				.oauth2ResourceServer((resourceServer) -> resourceServer
 						.jwt(Customizer.withDefaults()));
@@ -137,6 +140,7 @@ public class AuthorizationServerConfig {
 			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
 		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService(
 				jdbcTemplate, registeredClientRepository);
+	}
 
 	@Bean
 	public org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService authorizationService(
