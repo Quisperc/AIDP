@@ -13,59 +13,74 @@ public class SsoLogoutController {
 
 	private final SessionRegistry sessionRegistry;
 
+	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.provider.auth-server.issuer-uri}")
+	private String issuerUri;
+
+	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
+	private String clientId;
+
 	public SsoLogoutController(SessionRegistry sessionRegistry) {
 		this.sessionRegistry = sessionRegistry;
 	}
 
-	/**
-	 * Receive broadcast logout notification from Auth Server.
-	 * Invalidates all sessions for the given username.
-	 */
-	@org.springframework.beans.factory.annotation.Value("${app.sso-secret}")
-	private String expectedSecret;
-
-	/**
-	 * Receive broadcast logout notification from Auth Server.
-	 * Invalidates all sessions for the given username.
-	 */
 	@PostMapping("/api/sso-logout")
-	public String ssoLogout(@RequestParam("username") String username,
-			@org.springframework.web.bind.annotation.RequestHeader(value = "X-SSO-Secret", required = false) String secret) {
-
-		if (secret == null || !secret.equals(expectedSecret)) {
-			System.err.println("SSO Logout Rejected: Invalid Secret for user " + username);
-			return "Forbidden";
+	public String ssoLogout(@RequestParam(name = "logout_token", required = false) String logoutToken) {
+		if (logoutToken == null) {
+			return "Missing logout_token";
 		}
 
-		System.out.println("Received SSO logout request for user: " + username);
+		try {
+			// 1. Initialize Decoder
+			org.springframework.security.oauth2.jwt.JwtDecoder decoder = org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+					.withJwkSetUri(issuerUri + "/oauth2/jwks")
+					.build();
 
+			// 2. Decode & Verify
+			org.springframework.security.oauth2.jwt.Jwt jwt = decoder.decode(logoutToken);
+
+			// 3. Validate Claims
+			if (!jwt.getAudience().contains(clientId)) {
+				throw new IllegalStateException("Invalid audience: " + jwt.getAudience());
+			}
+			if (!jwt.getIssuer().toString().equals(issuerUri)) {
+				throw new IllegalStateException("Invalid issuer: " + jwt.getIssuer());
+			}
+
+			// 4. Extract Subject
+			String username = jwt.getSubject();
+			System.out.println("OIDC Logout received for user: " + username);
+
+			// 5. Invalidate Session
+			expireUserSessions(username);
+
+			return "Logged out";
+
+		} catch (Exception e) {
+			System.err.println("OIDC Logout Failed: " + e.getMessage());
+			return "Bad Request";
+		}
+	}
+
+	private void expireUserSessions(String username) {
 		List<Object> allPrincipals = sessionRegistry.getAllPrincipals();
 		for (Object principal : allPrincipals) {
-			if (isUser(principal, username)) {
-				expireUserSessions(principal);
+			String principalName = null;
+			if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+				principalName = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+			} else if (principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
+				principalName = ((org.springframework.security.oauth2.core.oidc.user.OidcUser) principal).getName();
+			} else {
+				principalName = principal.toString();
 			}
-		}
 
-		return "Logged out";
-	}
-
-	private boolean isUser(Object principal, String username) {
-		if (principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
-			org.springframework.security.oauth2.core.oidc.user.OidcUser user = (org.springframework.security.oauth2.core.oidc.user.OidcUser) principal;
-			return user.getName().equals(username) || user.getPreferredUsername().equals(username);
-		} else if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
-			return ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername()
-					.equals(username);
-		} else {
-			return principal.toString().equals(username);
-		}
-	}
-
-	private void expireUserSessions(Object principal) {
-		List<SessionInformation> sessions = sessionRegistry.getAllSessions(principal, false);
-		for (SessionInformation session : sessions) {
-			session.expireNow();
-			System.out.println("Invalidated session: " + session.getSessionId());
+			if (username.equals(principalName)) {
+				List<org.springframework.security.core.session.SessionInformation> sessions = sessionRegistry
+						.getAllSessions(principal, false);
+				for (org.springframework.security.core.session.SessionInformation session : sessions) {
+					session.expireNow();
+				}
+				System.out.println("Invalidated session for user: " + username);
+			}
 		}
 	}
 }

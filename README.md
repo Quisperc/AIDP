@@ -288,12 +288,16 @@ spring:
 
 ### 1. SSO 全局退出 (Global Logout)
 *   **触发**: 在 SSO (8080) 页面点击退出。
-*   **行为**: **"核弹级清场"**
-    *   **Clear Consent**: 立即删除该用户在数据库中的所有授权记录 (`oauth2_authorization_consent`)。
-    *   **Broadcast**: Auth Server 广播通知所有已注册 Client 的 `/api/sso-logout` 接口。
-        *   **安全加固**: 请求头携带 `X-SSO-Secret`，防止恶意调用。
-    *   **Invalidate**: 各个 Client 验证 Secret 后，利用 `SessionRegistry` 立即销毁该用户的本地 Session。
-*   **效果**: 所有系统同时掉线。用户下次刷新页面时，会自动跳转回首页（而不是显示 Session Expired 错误页）。
+*   **行为**: **"全链路安全退出 (OIDC Back-Channel Logout)"**
+    *   **Clear Consent**: 立即删除该用户在数据库中的所有授权记录。
+    *   **Broadcast**: Auth Server 向所有注册 Client 的 `/api/sso-logout` 发送 POST 请求。
+        *   **Logout Token**: 生成一个符合 **OpenID Connect Back-Channel Logout 1.0** 规范的 **JWT**。
+        *   **安全验证**: 由 Auth Server 私钥签名。
+    *   **Verify & Invalidate**: Client App (如 8081) 接收到 JWT 后：
+        1.  使用 Auth Server 的公钥 (`/oauth2/jwks`) 验证签名。
+        2.  校验 `iss` (Issuer) 和 `aud` (Audience)。
+        3.  提取 `sub` (用户名) 并通过 `SessionRegistry` 销毁对应 Session。
+*   **效果**: 所有系统同时掉线。用户下次刷新页面时，会自动跳转回首页。
 
 ### 2. 子系统退出 (Single Client Logout)
 *   **触发**: 在子系统 (如 8081) 点击退出。
