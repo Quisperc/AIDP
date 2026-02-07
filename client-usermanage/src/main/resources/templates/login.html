@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Login</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			min-height: 100vh;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+			padding: 20px;
+		}
+
+		.login-container {
+			width: 100%;
+			max-width: 440px;
+			animation: fadeInUp 0.6s ease-out;
+		}
+
+		@keyframes fadeInUp {
+			from {
+				opacity: 0;
+				transform: translateY(30px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.login-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 24px;
+			padding: 48px 40px;
+			box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+			text-align: center;
+		}
+
+		.login-icon {
+			width: 72px;
+			height: 72px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0 auto 24px;
+			box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+		}
+
+		.login-icon svg {
+			width: 36px;
+			height: 36px;
+			fill: white;
+		}
+
+		h1 {
+			color: #ffffff;
+			font-size: 26px;
+			font-weight: 600;
+			margin-bottom: 12px;
+		}
+
+		.subtitle {
+			color: rgba(255, 255, 255, 0.6);
+			font-size: 14px;
+			margin-bottom: 32px;
+		}
+
+		/* Error Alert */
+		.alert-error {
+			background: rgba(239, 68, 68, 0.15);
+			border: 1px solid rgba(239, 68, 68, 0.3);
+			border-radius: 12px;
+			padding: 16px 20px;
+			margin-bottom: 28px;
+			display: flex;
+			align-items: flex-start;
+			gap: 12px;
+			text-align: left;
+			animation: shake 0.5s ease-in-out;
+		}
+
+		@keyframes shake {
+
+			0%,
+			100% {
+				transform: translateX(0);
+			}
+
+			25% {
+				transform: translateX(-5px);
+			}
+
+			75% {
+				transform: translateX(5px);
+			}
+		}
+
+		.alert-error svg {
+			width: 20px;
+			height: 20px;
+			fill: #fca5a5;
+			flex-shrink: 0;
+			margin-top: 2px;
+		}
+
+		.alert-content {
+			flex: 1;
+		}
+
+		.alert-title {
+			color: #fca5a5;
+			font-weight: 600;
+			font-size: 14px;
+			margin-bottom: 4px;
+		}
+
+		.alert-message {
+			color: rgba(252, 165, 165, 0.8);
+			font-size: 13px;
+			line-height: 1.5;
+		}
+
+		/* OAuth Login Button */
+		.btn-oauth {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 12px;
+			width: 100%;
+			padding: 16px 24px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border: none;
+			border-radius: 12px;
+			color: white;
+			font-size: 16px;
+			font-weight: 600;
+			text-decoration: none;
+			transition: all 0.3s ease;
+			box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+		}
+
+		.btn-oauth:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+		}
+
+		.btn-oauth svg {
+			width: 20px;
+			height: 20px;
+			fill: currentColor;
+		}
+
+		.divider {
+			display: flex;
+			align-items: center;
+			margin: 24px 0;
+			color: rgba(255, 255, 255, 0.3);
+			font-size: 12px;
+		}
+
+		.divider::before,
+		.divider::after {
+			content: '';
+			flex: 1;
+			height: 1px;
+			background: rgba(255, 255, 255, 0.1);
+		}
+
+		.divider::before {
+			margin-right: 16px;
+		}
+
+		.divider::after {
+			margin-left: 16px;
+		}
+
+		.help-text {
+			color: rgba(255, 255, 255, 0.5);
+			font-size: 13px;
+			line-height: 1.6;
+		}
+
+		.help-text a {
+			color: #a5b4fc;
+			text-decoration: none;
+		}
+
+		.help-text a:hover {
+			text-decoration: underline;
+		}
+
+		/* Responsive */
+		@media (max-width: 480px) {
+			.login-card {
+				padding: 32px 24px;
+			}
+
+			h1 {
+				font-size: 22px;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="login-container">
+		<div class="login-card">
+			<div class="login-icon">
+				<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+					<path
+						d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+				</svg>
+			</div>
+
+			<h1>User Management</h1>
+			<p class="subtitle">Sign in with your Auth Server account</p>
+
+			<!-- Error Display -->
+			<div th:if="${param.error}" class="alert-error">
+				<svg viewBox="0 0 24 24">
+					<path
+						d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+				</svg>
+				<div class="alert-content">
+					<div class="alert-title">Authentication Failed</div>
+					<div class="alert-message"
+						th:text="${session.SPRING_SECURITY_LAST_EXCEPTION?.message} ?: 'Unable to authenticate. Please try again.'">
+					</div>
+				</div>
+			</div>
+
+			<!-- OAuth Login Button -->
+			<a href="/oauth2/authorization/oidc-client" class="btn-oauth">
+				<svg viewBox="0 0 24 24">
+					<path
+						d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z" />
+				</svg>
+				Sign in with SSO
+			</a>
+
+			<div class="divider">or</div>
+
+			<p class="help-text">
+				Don't have an account? Contact your administrator.
+			</p>
+		</div>
+	</div>
+</body>
+
+</html>

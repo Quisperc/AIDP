@@ -51,7 +51,7 @@ public class SecurityConfig {
 		http
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
-						.requestMatchers("/error").permitAll()
+						.requestMatchers("/error", "/login").permitAll()
 						.requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
 								"/api/sso-logout"))
 						.permitAll()
@@ -59,6 +59,7 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf.ignoringRequestMatchers(
 						new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/sso-logout")))
 				.oauth2Login(oauth2 -> oauth2
+						.loginPage("/login")
 						.userInfoEndpoint(userInfo -> userInfo
 								.oidcUserService(this.oidcUserService()))
 						.successHandler(customAuthenticationSuccessHandler))

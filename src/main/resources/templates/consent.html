@@ -3,119 +3,296 @@
 
 <head>
 	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Consent Required</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
 		body {
-			font-family: sans-serif;
-			background-color: #f7f7f7;
+			font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			min-height: 100vh;
 			display: flex;
 			justify-content: center;
 			align-items: center;
-			height: 100vh;
-			margin: 0;
+			background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+			padding: 20px;
 		}
 
-		.container {
-			background: white;
-			padding: 2rem;
-			border-radius: 8px;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		.consent-container {
 			width: 100%;
-			max-width: 500px;
+			max-width: 480px;
+			animation: fadeInUp 0.6s ease-out;
+		}
+
+		@keyframes fadeInUp {
+			from {
+				opacity: 0;
+				transform: translateY(30px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.consent-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 24px;
+			padding: 40px;
+			box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+		}
+
+		.consent-header {
+			text-align: center;
+			margin-bottom: 32px;
+		}
+
+		.consent-icon {
+			width: 72px;
+			height: 72px;
+			background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+			border-radius: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0 auto 20px;
+			box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+		}
+
+		.consent-icon svg {
+			width: 36px;
+			height: 36px;
+			fill: white;
 		}
 
 		h1 {
-			font-size: 1.5rem;
-			text-align: center;
-			margin-bottom: 2rem;
+			color: #ffffff;
+			font-size: 24px;
+			font-weight: 600;
+			margin-bottom: 8px;
 		}
 
 		.user-info {
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 16px;
+			padding: 20px;
+			margin-bottom: 28px;
+		}
+
+		.user-info p {
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 14px;
+			margin-bottom: 8px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.user-info p:last-child {
+			margin-bottom: 0;
+		}
+
+		.user-info strong {
+			color: #ffffff;
+			font-weight: 500;
+		}
+
+		.permission-text {
+			color: rgba(255, 255, 255, 0.6);
+			font-size: 14px;
 			text-align: center;
-			margin-bottom: 1.5rem;
-			color: #666;
+			margin-bottom: 20px;
 		}
 
 		.scope-list {
 			list-style: none;
-			padding: 0;
-			margin-bottom: 2rem;
+			margin-bottom: 32px;
 		}
 
 		.scope-item {
-			padding: 10px;
-			border-bottom: 1px solid #eee;
+			padding: 16px;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 12px;
+			margin-bottom: 10px;
 			display: flex;
 			align-items: center;
+			gap: 14px;
+			transition: all 0.3s ease;
+			cursor: pointer;
 		}
 
-		.scope-item input {
-			margin-right: 10px;
-			transform: scale(1.2);
+		.scope-item:hover {
+			background: rgba(255, 255, 255, 0.06);
+			border-color: rgba(255, 255, 255, 0.15);
+		}
+
+		.scope-item:last-child {
+			margin-bottom: 0;
+		}
+
+		/* Custom Checkbox */
+		.scope-item input[type="checkbox"] {
+			appearance: none;
+			-webkit-appearance: none;
+			width: 22px;
+			height: 22px;
+			border: 2px solid rgba(255, 255, 255, 0.3);
+			border-radius: 6px;
+			cursor: pointer;
+			position: relative;
+			transition: all 0.3s ease;
+			flex-shrink: 0;
+		}
+
+		.scope-item input[type="checkbox"]:checked {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-color: transparent;
+		}
+
+		.scope-item input[type="checkbox"]:checked::after {
+			content: '';
+			position: absolute;
+			left: 6px;
+			top: 2px;
+			width: 6px;
+			height: 12px;
+			border: solid white;
+			border-width: 0 2px 2px 0;
+			transform: rotate(45deg);
+		}
+
+		.scope-item label {
+			color: #ffffff;
+			font-size: 15px;
+			font-weight: 500;
+			cursor: pointer;
+			flex: 1;
 		}
 
 		.btn-group {
 			display: flex;
-			justify-content: space-between;
-			gap: 1rem;
+			gap: 12px;
 		}
 
 		button {
 			flex: 1;
-			padding: 10px;
+			padding: 16px 24px;
 			border: none;
-			border-radius: 4px;
+			border-radius: 12px;
+			font-size: 15px;
+			font-weight: 600;
+			font-family: inherit;
 			cursor: pointer;
-			font-size: 1rem;
+			transition: all 0.3s ease;
 		}
 
 		.btn-submit {
-			background: #2196f3;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 			color: white;
+			box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+		}
+
+		.btn-submit:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
 		}
 
 		.btn-cancel {
-			background: #e0e0e0;
-			color: #333;
+			background: rgba(255, 255, 255, 0.08);
+			color: rgba(255, 255, 255, 0.8);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+		}
+
+		.btn-cancel:hover {
+			background: rgba(255, 255, 255, 0.12);
+			color: #ffffff;
+		}
+
+		/* Responsive */
+		@media (max-width: 480px) {
+			.consent-card {
+				padding: 28px 20px;
+			}
+
+			h1 {
+				font-size: 20px;
+			}
+
+			.btn-group {
+				flex-direction: column-reverse;
+			}
 		}
 	</style>
 </head>
 
 <body>
-	<div class="container">
-		<h1>Authorization Required</h1>
-
-		<div class="user-info">
-			<p>User: <strong><span th:text="${principalName}"></span></strong></p>
-			<p>Application: <strong><span th:text="${clientName}"></span></strong></p>
-		</div>
-
-		<p style="text-align: center; margin-bottom: 1rem;">
-			The application wants to access your account for the following permissions:
-		</p>
-
-		<form method="post" action="/oauth2/authorize">
-			<input type="hidden" name="client_id" th:value="${clientId}">
-			<input type="hidden" name="state" th:value="${state}">
-
-			<ul class="scope-list">
-				<li class="scope-item" th:each="scope : ${scopes}">
-					<input type="checkbox" name="scope" th:value="${scope}" id="${scope}" checked>
-					<label th:for="${scope}" th:text="${scope}"></label>
-				</li>
-			</ul>
-
-			<div class="btn-group">
-				<button type="submit" class="btn-submit" id="submit-consent">Submit Consent</button>
-				<button type="button" class="btn-cancel" onclick="cancelConsent()">Cancel</button>
+	<div class="consent-container">
+		<div class="consent-card">
+			<div class="consent-header">
+				<div class="consent-icon">
+					<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+						<path
+							d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+					</svg>
+				</div>
+				<h1>Authorization Required</h1>
 			</div>
-		</form>
+
+			<div class="user-info">
+				<p>Signed in as <strong><span th:text="${principalName}"></span></strong></p>
+				<p>Application <strong><span th:text="${clientName}"></span></strong></p>
+			</div>
+
+			<p class="permission-text">
+				This application is requesting access to the following permissions:
+			</p>
+
+			<form method="post" action="/oauth2/authorize">
+				<input type="hidden" name="client_id" th:value="${clientId}">
+				<input type="hidden" name="state" th:value="${state}">
+
+				<ul class="scope-list">
+					<li class="scope-item" th:each="scope : ${scopes}">
+						<input type="checkbox" name="scope" th:value="${scope}" th:id="${scope}" checked>
+						<label th:for="${scope}" th:text="${scope}"></label>
+					</li>
+				</ul>
+
+				<div class="btn-group">
+					<button type="button" class="btn-cancel" onclick="cancelConsent()">Cancel</button>
+					<button type="submit" class="btn-submit" id="submit-consent">Authorize</button>
+				</div>
+			</form>
+		</div>
 	</div>
+
 	<script>
 		function cancelConsent() {
-			window.history.back(); // Simple cancel or redirect
+			window.history.back();
 		}
+
+		// Click on scope item to toggle checkbox
+		document.querySelectorAll('.scope-item').forEach(item => {
+			item.addEventListener('click', (e) => {
+				if (e.target.tagName !== 'INPUT') {
+					const checkbox = item.querySelector('input[type="checkbox"]');
+					checkbox.checked = !checkbox.checked;
+				}
+			});
+		});
 	</script>
 </body>
 
