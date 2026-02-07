@@ -38,12 +38,13 @@ public class SecurityConfig {
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests(authorize -> authorize
-						.requestMatchers("/error").permitAll()
+						.requestMatchers("/error", "/login").permitAll()
 						.requestMatchers("/api/sso-logout").permitAll()
 						.anyRequest().authenticated())
 				// Allow broadcast logout from Auth Server without CSRF token
 				.csrf(csrf -> csrf.ignoringRequestMatchers("/api/sso-logout"))
 				.oauth2Login(oauth2 -> oauth2
+						.loginPage("/login")
 						.userInfoEndpoint(userInfo -> userInfo
 								.oidcUserService(this.oidcUserService())))
 				.logout(logout -> logout

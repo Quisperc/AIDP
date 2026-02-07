@@ -3,13 +3,16 @@ server:
   servlet:
     session:
       cookie:
-        name: CLIENT_SESSIONID # 【关键】自定义 Cookie 名称，防止与 Auth Server (8080) 的 JSESSIONID 冲突导致的登录死循环
+        name: CLIENT_SESSIONID # 【关键】自定义 Cookie 名称，防止与 Auth Server 的冲突
+        domain: civer.cn  # 注意前面的点，允许所有子域名共享
 
 logging:
   level:
     org.springframework.security: DEBUG # 开启安全调试日志，方便排查登录跳转问题 (生产环境建议改为 INFO)
 
 spring:
+  config:
+    import: optional:file:./application-secret.yml
   application:
     name: client-usermanage           # 应用名称
   security:
@@ -21,7 +24,7 @@ spring:
             client-id: client-usermanage       # 【关键】Client ID，必须与 Auth Server 数据库/配置中一致
             client-secret: secret       # 【关键】Client Secret，必须与 Auth Server 中的一致
             authorization-grant-type: authorization_code # 授权码模式：最标准的 OIDC 登录流程
-            redirect-uri: "http://127.0.0.1:8081/login/oauth2/code/{registrationId}" # 回调地址，接受 Code
+            redirect-uri: "${app.base-url}/login/oauth2/code/{registrationId}" # 回调地址，使用变量
             scope:                      # 申请的权限范围
               - openid                  # 必须：表示进行 OIDC 身份认证
               - profile                 # 选填：获取用户基本信息 (对应 Auth Server 的 scope 配置)
@@ -30,6 +33,6 @@ spring:
             issuer-uri: ${app.auth-server-url} # 【核心】引用下方定义的统一地址
 
 app:
-  auth-server-url: http://127.0.0.1:8080
-  base-url: http://127.0.0.1:8081
-
+  # 本地开发使用 localhost，生产部署时通过环境变量覆盖
+  auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
+  base-url: ${APP_BASE_URL:http://127.0.0.1:8081}

@@ -4,6 +4,7 @@ server:
     session:
       cookie:
         name: AUTH_SESSIONID   # 【关键】自定义 Cookie 名称，隔离会话
+        domain: civer.cn  # 注意前面的点，允许所有子域名共享
 
 spring:
   config:
@@ -13,7 +14,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/authdb # 数据库连接地址
     username: username            # 数据库用户名
-    password: password   # 数据库密码
+    password: password            # 数据库密码
     driver-class-name: org.postgresql.Driver
   sql:
     init:
@@ -25,14 +26,14 @@ spring:
     show-sql: true             # 控制台打印 SQL，方便调试
 
 app:
+  # 本地开发使用 localhost，生产部署时通过环境变量覆盖
+  base-url: ${APP_BASE_URL:http://127.0.0.1:8080}
+
   auth:
-    # Service Security
-
-
     # Initial Client Data (Auto-registered on startup if missing)
     initial-client:
-        client-id: client-usermanage
-        client-secret: secret
-        # Supports multiple URIs separated by comma
-        redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client,http://127.0.0.1:8081/authorized
-        post-logout-redirect-uri: http://127.0.0.1:8080/login
+      client-id: client-usermanage
+      client-secret: secret
+      # 支持多个 URI，用逗号分隔
+      redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client
+      post-logout-redirect-uri: http://127.0.0.1:8080/login

@@ -116,7 +116,81 @@ mvn spring-boot:run
 
 ---
 
+## 🌐 生产部署：跨子域名 SSO
+
+当您需要部署到生产环境，实现 `c1.civer.cn`、`c2.civer.cn` 等多个子系统共享 `idp.civer.cn` 的统一登录时，需要进行以下配置。
+
+### 1. 架构规划
+
+| 服务 | 域名 | 说明 |
+|------|------|------|
+| Auth Server (IDP) | `idp.civer.cn` | 认证中心 |
+| Client UserManage | `um.civer.cn` | 管理后台 |
+| 业务系统 A | `c1.civer.cn` | 子系统 |
+| 业务系统 B | `c2.civer.cn` | 子系统 |
+
+### 2. 关键配置
+
+#### Cookie Domain（实现 Session 共享）
+```yaml
+server:
+  servlet:
+    session:
+      cookie:
+        domain: civer.cn  # 允许所有子域名共享
+```
+
+#### 环境变量（生产部署）
+```bash
+# Auth Server
+APP_BASE_URL=https://idp.civer.cn
+
+# Client Apps
+APP_AUTH_SERVER_URL=https://idp.civer.cn
+APP_BASE_URL=https://um.civer.cn
+```
+
+### 3. HTTPS + 反向代理
+
+生产环境推荐使用 Caddy 或 Nginx 作为反向代理：
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         Caddy / Nginx               │
+                    │      (SSL 终止 + 反向代理)           │
+                    └─────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+   idp.civer.cn:443    um.civer.cn:443    c1.civer.cn:443
+          │                   │                   │
+          ▼                   ▼                   ▼
+    localhost:8080     localhost:8081     localhost:8082
+```
+
+**Caddy 配置示例 (`Caddyfile`)：**
+```
+idp.civer.cn {
+    reverse_proxy localhost:8080
+}
+
+um.civer.cn {
+    reverse_proxy localhost:8081
+}
+```
+
+### 4. 数据库配置
+
+确保在 Auth Server 数据库的 `oauth2_registered_client` 表中，每个客户端的 `redirect_uris` 包含正确的生产域名：
+```
+https://um.civer.cn/login/oauth2/code/oidc-client
+https://c1.civer.cn/login/oauth2/code/oidc-client
+```
+
+---
+
 ## 📦 快速接入 (Client Template)
+
 
 为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
 

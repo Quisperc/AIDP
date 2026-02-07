@@ -4,12 +4,15 @@ server:
     session:
       cookie:
         name: CLIENT_TEMPLATE_SESSIONID # [MODIFY] Unique session cookie name to avoid conflicts
+        domain: civer.cn  # 注意前面的点，允许所有子域名共享
 
 logging:
   level:
     org.springframework.security: INFO
 
 spring:
+  config:
+    import: optional:file:./application-secret.yml
   application:
     name: client-template           # [MODIFY] App Name
   security:
@@ -22,8 +25,7 @@ spring:
             client-id: client-template
             client-secret: secret
             authorization-grant-type: authorization_code
-            # [MODIFY] Ensure port matches server.port
-            redirect-uri: "http://127.0.0.1:8089/login/oauth2/code/oidc-client"
+            redirect-uri: "${app.base-url}/login/oauth2/code/{registrationId}"
             scope:
               - openid
               - profile
@@ -33,6 +35,7 @@ spring:
 
 # Custom Properties for dynamic configuration
 app:
-  auth-server-url: http://127.0.0.1:8080
+  # 本地开发使用 localhost，生产部署时通过环境变量覆盖
+  auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
   # [MODIFY] Ensure this matches server.port
-  base-url: http://127.0.0.1:8089
+  base-url: ${APP_BASE_URL:http://127.0.0.1:8089}
