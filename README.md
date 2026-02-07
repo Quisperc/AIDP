@@ -104,7 +104,7 @@ mvn spring-boot:run
 
 ---
 
-## � 目录结构
+## 📁 目录结构
 
 *   `src/main/java/cn/civer/authserver` - **认证中心源码**
 *   `client-usermanage/` - **管理后台源码**
@@ -112,7 +112,7 @@ mvn spring-boot:run
 *   `scripts/` - **SQL 脚本与工具类**
     *   `ClientSqlGenerator.java`: 交互式 SQL 生成器
     *   `insert_clients.sql`: 初始数据备份
-*   `application-secret.yml` - (需手动创建) 本地敏感配置
+*   `application-secret.yml` - (需手动创建) 本地敏感配置，放置在项目根目录
 
 ---
 
@@ -191,35 +191,46 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 ## 📦 快速接入 (Client Template)
 
-
 为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
 
-该模板已预置了**最核心的安全配置**，包括：
-1.  **OAuth2 登录**: 自动对接 Auth Server。
-2.  **动态退出**: 包含了 **单客户端退出** 和 **SSO 广播退出** 的完整实现。
-3.  **防 Cookie 冲突**: 预置了独立的 Session 配置。
+### 模板结构
+
+| 文件 | 说明 |
+|------|------|
+| `ClientApplication.java` | Spring Boot 启动类 |
+| `config/SecurityConfig.java` | OAuth2 安全配置（登录、角色映射、退出）|
+| `controller/HomeController.java` | 首页控制器（展示用户信息）|
+| `controller/LoginController.java` | 登录页（已登录自动跳转）|
+| `controller/SsoLogoutController.java` | SSO 广播退出接收端点 |
+| `templates/index.html` | 首页模板 |
+| `templates/login.html` | 登录页模板 |
+
+### 预置功能
+1.  **OAuth2 登录**: 自动对接 Auth Server
+2.  **自定义登录页**: 已登录用户访问 `/login` 自动跳转首页
+3.  **SSO 退出**: 支持单客户端退出和全局广播退出
+4.  **防 Cookie 冲突**: 独立的 Session Cookie 名称
 
 ### 接入步骤 (5分钟完成)
 
-1.  **复制项目**:
-    *   复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）。
+1.  **复制项目**: 复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）
 
-2.  **修改 `pom.xml`**:
-    *   将 `artifactId` 和 `name` 修改为 `client-oa`。
+2.  **修改 `pom.xml`**: 将 `artifactId` 和 `name` 修改为 `client-oa`
 
-3.  **修改配置 (`application.yml`)**:
-    *   **Port**: 修改 `server.port` (例如 `8082`)。
-    *   **Cookie**: 修改 `server.servlet.session.cookie.name` (例如 `OA_SESSIONID`)，防止 Cookie 冲突。
-    *   **Client ID**: 修改 `client-id` (例如 `oa-system`)。
-    *   **Redirect URI**: 确保端口与 Port 一致 (例如 `http://127.0.0.1:8082/...`)。
-    *   **Base URL**: 修改 `app.base-url` (例如 `http://127.0.0.1:8082`)。
+3.  **修改配置 (`application.yml` 或 `application-secret.yml`)**: `application-secret.yml`需要在项目根目录下自行创建，不会被打包进入jar。
+    | 配置项 | 示例值 |
+    |--------|--------|
+    | `server.port` | `8082` |
+    | `server.servlet.session.cookie.name` | `OA_SESSIONID` |
+    | `spring.security.oauth2.client.registration.oidc-client.client-id` | `oa-system` |
+    | `spring.security.oauth2.client.registration.oidc-client.client-secret` | `your-secret` |
+    | `app.base-url` | `http://127.0.0.1:8082` |
 
-4.  **注册数据库**:
-    *   在 Auth Server 数据库中注册该客户端（使用 Generator 或 管理后台）。
-    *   Generator：运行 `scripts/ClientSqlGenerator.java` 生成 SQL。
-    *   管理后台：访问 `http://127.0.0.1:8081/admin/clients`。
-5.  **启动开发**:
-    *   启动即可加入 SSO 生态。
+4.  **注册客户端**: 在 Auth Server 数据库中注册该客户端
+    *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients`
+    *   **手动**: 运行 `scripts/ClientSqlGenerator.java` 生成 SQL
+
+5.  **启动开发**: `mvn spring-boot:run` 即可加入 SSO 生态
 
 ---
 
@@ -292,9 +303,7 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 | :--- | :--- | :--- |
 | `app.auth.client-id` | `spring.security.oauth2.client.registration.oidc-client.client-id` | ✅ 是 |
 | `app.auth.client-secret` | `spring.security.oauth2.client.registration.oidc-client.client-secret` | ✅ 是 |
-| `app.auth.redirect-uri` | `spring.security.oauth2.client.registration.oidc-client.redirect-uri` | ✅ 是 (解析后需一致) |
-
-| `app.auth.redirect-uri` | `spring.security.oauth2.client.registration.oidc-client.redirect-uri` | ✅ 是 (解析后需一致) |
+| `redirect_uris` (数据库) | `spring.security.oauth2.client.registration.oidc-client.redirect-uri` | ✅ 是 (解析后需一致) |
 
 只有这三者完全匹配，握手才能成功。
 
@@ -335,18 +344,11 @@ public RegisteredClientRepository registeredClientRepository() {
 ### 3. 生产环境推荐方案 (数据库模式)
 随着子系统增多，写在代码或配置文件里会很难维护（每次新增都要重启）。
 
-**最佳实践**是使用 **`JdbcRegisteredClientRepository`**。
+**最佳实践**是使用 **`JdbcRegisteredClientRepository`** 实现数据库持久化。
 1.  引入 `spring-boot-starter-jdbc` 依赖。
-2.  在数据库中创建标准表 `oauth2_registered_client`（Spring Authorization Server 提供了标准建表语句）。
+2.  客户端信息存储在 `oauth2_registered_client` 表中，在数据库中创建标准表 `oauth2_registered_client`（Spring Authorization Server 提供了标准建表语句）。
 3.  将 Bean 替换为 `return new JdbcRegisteredClientRepository(jdbcTemplate);`。
-### 3. 生产环境推荐方案 (数据库模式)
-随着子系统增多，写在代码或配置文件里会很难维护（每次新增都要重启）。
-
-**最佳实践**是使用 **`JdbcRegisteredClientRepository`**。
-1.  引入 `spring-boot-starter-jdbc` 依赖。
-2.  在数据库中创建标准表 `oauth2_registered_client`（Spring Authorization Server 提供了标准建表语句）。
-3.  将 Bean 替换为 `return new JdbcRegisteredClientRepository(jdbcTemplate);`。
-4.  这样您就可以通过 SQL 或开发一个管理后台，动态地添加、删除子系统，而无需重启服务。
+4.  支持通过管理后台 `/admin/clients` 动态添加、修改、删除客户端。
 
 ---
 
@@ -365,13 +367,11 @@ public RegisteredClientRepository registeredClientRepository() {
 
 ### 2. 功能验证
 1.  **管理员登录 (Admin)**: 
-    *   访问 `http://127.0.0.1:8081/users`
+    *   访问 `http://127.0.0.1:8081/admin/users`
     *   可以看到用户列表，并能添加新用户（直接写入认证中心数据库）。
 2.  **普通用户登录 (User)**: 
-    *   访问 `http://127.0.0.1:8081/users`
-    *   会看到 **403 Forbidden** 错误（UI 层拦截）。
-    *   访问 `http://127.0.0.1:8081/users`
-    *   会看到 **403 Forbidden** 错误（UI 层拦截）。
+    *   访问 `http://127.0.0.1:8081/admin/users`
+    *   会看到 **403 Forbidden** 错误（无管理员权限）。
     *   即使直接调用 API，也会被 Auth Server 拦截。
 
 ---
