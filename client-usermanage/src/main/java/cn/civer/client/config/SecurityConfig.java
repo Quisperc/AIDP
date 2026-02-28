@@ -27,11 +27,10 @@ public class SecurityConfig {
 	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
 	private final cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
 
+	private static final String REGISTRATION_ID = "oidc-client";
+
 	@org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.name}")
 	private String cookieName;
-
-	@org.springframework.beans.factory.annotation.Value("${app.auth-server-url}")
-	private String authServerUrl;
 
 	@org.springframework.beans.factory.annotation.Value("${app.base-url}")
 	private String baseUrl;
@@ -44,6 +43,21 @@ public class SecurityConfig {
 			cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
 		this.clientRegistrationRepository = clientRegistrationRepository;
 		this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
+	}
+
+	/** 从 OAuth2 Client 的 issuer-uri 取得认证中心地址，与 spring.security.oauth2.client.provider.*.issuer-uri 一致 */
+	private String getAuthServerIssuerUri() {
+		var reg = clientRegistrationRepository.findByRegistrationId(REGISTRATION_ID);
+		if (reg == null) {
+			throw new IllegalStateException("OAuth2 client registration '" + REGISTRATION_ID + "' not found");
+		}
+		String issuer = reg.getProviderDetails().getIssuerUri();
+		if (issuer != null) {
+			return issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
+		}
+		// 兼容：从 token endpoint 推导 base URL
+		String tokenUri = reg.getProviderDetails().getTokenUri();
+		return tokenUri.replaceFirst("/oauth2/token$", "").replaceFirst("/oauth2/token\\?.*$", "");
 	}
 
 	@Bean
@@ -69,7 +83,7 @@ public class SecurityConfig {
 						// Local logout + Redirect to Auth Server to revoke consent (but keep SSO
 						// session)
 						.logoutSuccessUrl(String.format("%s/oauth2/revoke-consent?client_id=%s&redirect_uri=%s/",
-								authServerUrl, clientId, baseUrl))
+								getAuthServerIssuerUri(), clientId, baseUrl))
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
 						.deleteCookies(cookieName))

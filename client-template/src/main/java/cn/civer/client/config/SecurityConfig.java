@@ -22,17 +22,37 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+	private static final String REGISTRATION_ID = "oidc-client";
+
+	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
+
 	@org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.name}")
 	private String cookieName;
-
-	@org.springframework.beans.factory.annotation.Value("${app.auth-server-url}")
-	private String authServerUrl;
 
 	@org.springframework.beans.factory.annotation.Value("${app.base-url}")
 	private String baseUrl;
 
 	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
 	private String clientId;
+
+	public SecurityConfig(
+			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository) {
+		this.clientRegistrationRepository = clientRegistrationRepository;
+	}
+
+	/** 从 OAuth2 Client 的 issuer-uri 取得认证中心地址，与 spring.security.oauth2.client.provider.*.issuer-uri 一致 */
+	private String getAuthServerIssuerUri() {
+		var reg = clientRegistrationRepository.findByRegistrationId(REGISTRATION_ID);
+		if (reg == null) {
+			throw new IllegalStateException("OAuth2 client registration '" + REGISTRATION_ID + "' not found");
+		}
+		String issuer = reg.getProviderDetails().getIssuerUri();
+		if (issuer != null) {
+			return issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
+		}
+		String tokenUri = reg.getProviderDetails().getTokenUri();
+		return tokenUri.replaceFirst("/oauth2/token$", "").replaceFirst("/oauth2/token\\?.*$", "");
+	}
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -57,7 +77,7 @@ public class SecurityConfig {
 						// 2. Redirect to Auth Server to revoke ONLY this client's consent
 						// (SSO session remains active)
 						.logoutSuccessUrl(String.format("%s/oauth2/revoke-consent?client_id=%s&redirect_uri=%s/",
-								authServerUrl, clientId, baseUrl)))
+								getAuthServerIssuerUri(), clientId, baseUrl)))
 				// Enable SessionRegistry for Broadcast Logout
 				.sessionManagement(session -> session
 						.maximumSessions(1)

@@ -1,5 +1,7 @@
 server:
-  port: 8080                   # 服务端口：Auth Server 运行在 8080
+  port: 8080                   # 服务端口：Auth Server 运行在 8080# 
+  #建议同时开启这个，让 Spring 能够识别代理传来的 Header
+  forward-headers-strategy: framework
   servlet:
     session:
       cookie:
@@ -24,6 +26,10 @@ spring:
     hibernate:
       ddl-auto: update         # update: 自动根据 Entity 更新表结构，不会删除数据
     show-sql: true             # 控制台打印 SQL，方便调试
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: ${app.base-url}
 
 app:
   # 本地开发使用 localhost，生产部署时通过环境变量覆盖
