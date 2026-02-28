@@ -45,14 +45,29 @@
 *   Maven 3.x
 *   PostgreSQL 数据库 (创建数据库 `authdb`)
 
-### 2. 数据库配置
-在 `src/main/resources/application.yml` 中配置数据库连接。
-**🔒 安全建议**: 不要在 `application.yml` 中直接提交真实密码。请在项目根目录创建 `application-secret.yml`（已加入 `.gitignore`），并在其中覆盖敏感配置：
+### 2. 数据库与敏感配置
+在 `src/main/resources/application.yml` 中保留数据库连接结构，**不要**在仓库内提交真实密码。
+**🔒 安全建议**: 在项目根目录创建 `application-secret.yml`（已加入 `.gitignore`），仅覆盖敏感与环境相关配置，例如：
 ```yaml
 spring:
   datasource:
+    url: jdbc:postgresql://HOST:5432/DBNAME
+    username: YOUR_USER
     password: YOUR_REAL_PASSWORD
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: ${APP_BASE_URL:https://idp.civer.cn}  # 显式指定 OIDC Issuer
+app:
+  base-url: ${APP_BASE_URL:https://idp.civer.cn}
+  auth:
+    initial-client:
+      client-id: client-usermanage
+      client-secret: secretforusermanage
+      redirect-uris: https://um.civer.cn/login/oauth2/code/oidc-client
+      post-logout-redirect-uri: https://idp.civer.cn/login
 ```
+生产部署时优先使用环境变量 `APP_BASE_URL` 覆盖，避免在文件中写死域名。
 
 ### 3. 初始化数据 (Scripts)
 所有 SQL 脚本和工具现已归档至 `scripts/` 目录。
@@ -98,9 +113,10 @@ mvn spring-boot:run
     4.  请求体包含一个 **Logout Token** (JWT)，由 Auth Server 私钥签名。
     5.  子系统验证 JWT 签名和 Claims (Audience, Issuer)，验证通过后销毁本地 Session。
 
-### 3. 配置隐私保护
-*   `application.yml` 默认通过 `spring.config.import: optional:file:./application-secret.yml` 加载外部配置。
-*   开发人员应在本地创建 `application-secret.yml` 存放 `datasource.password` 等敏感信息，该文件不会被提交到 Git。
+### 3. 配置与隐私保护
+*   **Auth Server**：根目录 `application.yml` 通过 `spring.config.import: optional:file:./application-secret.yml` 加载 `application-secret.yml`。其中应覆盖：数据库连接、`spring.security.oauth2.authorizationserver.issuer`（显式指定 OIDC Issuer，保证 Discovery 与 Token 中 `iss` 一致）、`app.base-url` 及 `app.auth.initial-client` 等生产用值。
+*   **Client（client-usermanage / client-template）**：各模块的 `application.yml` 同样支持 `optional:file:./application-secret.yml`。secret 中只需覆盖 **client-secret** 和 **app.auth-server-url / app.base-url**，其余 OAuth2 结构沿用主配置，避免重复。
+*   所有 `application-secret.yml` 均已加入 `.gitignore`，不会提交到 Git。
 
 ---
 
@@ -112,7 +128,7 @@ mvn spring-boot:run
 *   `scripts/` - **SQL 脚本与工具类**
     *   `ClientSqlGenerator.java`: 交互式 SQL 生成器
     *   `insert_clients.sql`: 初始数据备份
-*   `application-secret.yml` - (需手动创建) 本地敏感配置，放置在项目根目录
+*   `application-secret.yml` - (需手动创建) 根目录为 Auth Server 敏感配置；`client-usermanage/`、`client-template/` 下可各有自己的 `application-secret.yml`，仅覆盖 client-secret 与 app 地址即可。
 
 ---
 
@@ -131,6 +147,17 @@ mvn spring-boot:run
 
 ### 2. 关键配置
 
+#### Auth Server：显式指定 Issuer
+反向代理后请求多为 HTTP，Discovery 中的 `issuer` 会错误变为 `http://...`。必须在 Auth Server 的 `application-secret.yml` 或环境变量中显式指定：
+```yaml
+spring:
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: https://idp.civer.cn
+```
+或通过环境变量 `APP_BASE_URL=https://idp.civer.cn` 覆盖（若 secret 中已使用 `${APP_BASE_URL:https://idp.civer.cn}`）。
+
 #### Cookie Domain（实现 Session 共享）
 ```yaml
 server:
@@ -142,13 +169,18 @@ server:
 
 #### 环境变量（生产部署）
 ```bash
-# Auth Server
+# Auth Server（认证中心）
 APP_BASE_URL=https://idp.civer.cn
 
-# Client Apps
+# Client UserManage（管理后台）
 APP_AUTH_SERVER_URL=https://idp.civer.cn
 APP_BASE_URL=https://um.civer.cn
+
+# 其他 Client（如 client-template 或自建子系统）
+APP_AUTH_SERVER_URL=https://idp.civer.cn
+APP_BASE_URL=https://c1.civer.cn   # 该子系统对外访问地址
 ```
+Client 只需配置上述两个变量即可同时生效：OIDC 发现（issuer-uri）、Feign 调用 Auth Server 的 base URL、以及退出时跳转的认证中心地址（由代码从 OAuth2 注册信息中的 issuer 推导）。
 
 ### 3. HTTPS + 反向代理
 
@@ -179,7 +211,18 @@ um.civer.cn {
 }
 ```
 
-### 4. 数据库配置
+建议在反向代理中设置 `X-Forwarded-Proto: https` 和 `X-Forwarded-Host`，并在 Auth Server 的 `application.yml` 中启用：
+```yaml
+server:
+  forward-headers-strategy: framework
+```
+这样 Spring 能正确识别外部协议与 Host，与显式 `issuer` 配置一起保证行为一致。
+
+### 4. 容器部署（Docker）
+*   **环境变量**：容器启动时务必传入 `APP_BASE_URL`（Auth Server）或 `APP_AUTH_SERVER_URL`、`APP_BASE_URL`（Client），否则会使用默认的 localhost 地址，导致 Discovery 与回调异常。
+*   **挂载 secret**：若通过挂载提供 `application-secret.yml`，请挂载到容器内 Spring Boot 工作目录（如 `/app/application-secret.yml`），与 `spring.config.import: optional:file:./application-secret.yml` 对应。
+
+### 5. 数据库与客户端 redirect_uris
 
 确保在 Auth Server 数据库的 `oauth2_registered_client` 表中，每个客户端的 `redirect_uris` 包含正确的生产域名：
 ```
@@ -217,14 +260,15 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 2.  **修改 `pom.xml`**: 将 `artifactId` 和 `name` 修改为 `client-oa`
 
-3.  **修改配置 (`application.yml` 或 `application-secret.yml`)**: `application-secret.yml`需要在项目根目录下自行创建，不会被打包进入jar。
-    | 配置项 | 示例值 |
-    |--------|--------|
-    | `server.port` | `8082` |
-    | `server.servlet.session.cookie.name` | `OA_SESSIONID` |
-    | `spring.security.oauth2.client.registration.oidc-client.client-id` | `oa-system` |
-    | `spring.security.oauth2.client.registration.oidc-client.client-secret` | `your-secret` |
-    | `app.base-url` | `http://127.0.0.1:8082` |
+3.  **修改配置**: 在 `application.yml` 中设置端口、cookie 名称、client-id 等；敏感与生产地址放在同目录下的 `application-secret.yml`（需自行创建，不会打入 jar）。Client 只需在 secret 中覆盖 **client-secret** 以及 **app.auth-server-url / app.base-url** 即可。
+    | 配置项 | 说明 / 示例值 |
+    |--------|----------------|
+    | `server.port` | 本服务端口，如 `8082` |
+    | `server.servlet.session.cookie.name` | 唯一 Cookie 名，如 `OA_SESSIONID` |
+    | `spring.security.oauth2.client.registration.oidc-client.client-id` | 与 Auth Server 注册一致，如 `oa-system` |
+    | `spring.security.oauth2.client.registration.oidc-client.client-secret` | 在 secret 中覆盖，不提交仓库 |
+    | `app.auth-server-url` | 认证中心地址，如 `https://idp.civer.cn`，可用 `APP_AUTH_SERVER_URL` 覆盖 |
+    | `app.base-url` | 本系统对外地址，如 `http://127.0.0.1:8082`，可用 `APP_BASE_URL` 覆盖 |
 
 4.  **注册客户端**: 在 Auth Server 数据库中注册该客户端
     *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients`
@@ -301,11 +345,13 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 | 认证中心 (Auth Server) | 子系统 (Client App) | 必须一致? |
 | :--- | :--- | :--- |
-| `app.auth.client-id` | `spring.security.oauth2.client.registration.oidc-client.client-id` | ✅ 是 |
-| `app.auth.client-secret` | `spring.security.oauth2.client.registration.oidc-client.client-secret` | ✅ 是 |
-| `redirect_uris` (数据库) | `spring.security.oauth2.client.registration.oidc-client.redirect-uri` | ✅ 是 (解析后需一致) |
+| `app.auth.initial-client.client-id` / 数据库 | `spring.security.oauth2.client.registration.oidc-client.client-id` | ✅ 是 |
+| `app.auth.initial-client.client-secret` / 数据库 | `spring.security.oauth2.client.registration.oidc-client.client-secret` | ✅ 是 |
+| `redirect_uris` (数据库) | `redirect-uri: ${app.base-url}/login/oauth2/code/{registrationId}` 解析后 | ✅ 是 |
 
 只有这三者完全匹配，握手才能成功。
+
+**区分两个 ID**：配置里的 **`oidc-client`** 是 Spring 本地 **registrationId**（用于 `findByRegistrationId("oidc-client")`、回调路径 `/login/oauth2/code/oidc-client`），不会发给 Auth Server；**`client-id: client-usermanage`** 才是 OAuth2 协议中的客户端标识，与 Auth Server 数据库中的客户端一致。
 
 ---
 
@@ -417,3 +463,7 @@ public RegisteredClientRepository registeredClientRepository() {
 3.  **UI/UX 优化**
     *   **排序**: 用户列表强制按 ID 排序，防止刷新后乱序。
     *   **交互**: 修复了按钮点击区域过小的问题，优化了表格布局。
+
+4.  **生产环境 Issuer 与配置简化**
+    *   **Auth Server**：通过 `spring.security.oauth2.authorizationserver.issuer` 显式指定 OIDC Issuer，避免反向代理后 Discovery 返回 `http://`。`app.base-url` 仅用于业务侧拼链接，不参与 SAS 的 issuer 计算。
+    *   **Client**：退出跳转的认证中心地址由代码从已注册的 OAuth2 Client 的 `issuer-uri` 推导，与 `issuer-uri` 配置一致，无需单独维护一份“认证中心 URL”；Feign 仍通过 `app.auth-server-url`（与 issuer-uri 同源）配置 base URL。
