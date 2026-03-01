@@ -68,19 +68,23 @@ public class UserManagementController {
 	public ResponseEntity<User> updateCurrentUser(
 			@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt principal,
 			@RequestBody User updatedUser) {
-		// Principal in Resource Server with JWT is typically Jwt
-		String username = principal.getSubject(); // "sub" claim
+		String username = principal.getSubject();
 		return userRepository.findByUsername(username).map(user -> {
-			// Allow changing username (requires re-login usually)
 			if (updatedUser.getUsername() != null && !updatedUser.getUsername().isEmpty()) {
-				user.setUsername(updatedUser.getUsername());
+				String newUsername = updatedUser.getUsername().trim();
+				// 若修改用户名，检查是否已被其他用户占用
+				java.util.Optional<User> existing = userRepository.findByUsername(newUsername);
+				if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
+					return ResponseEntity.status(409).body((User) null);
+				}
+				user.setUsername(newUsername);
 			}
-			// Allow changing password
 			if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
 				user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
 			}
-			// DO NOT update Role or Enabled status here for security
-			return ResponseEntity.ok(userRepository.save(user));
+			User saved = userRepository.save(user);
+			// 不在此处广播：由客户端重定向到 /logout 后，由 SsoLogoutSuccessHandler 统一做一次全局退出（清 consent + 广播），避免重复
+			return ResponseEntity.ok(saved);
 		}).orElse(ResponseEntity.notFound().build());
 	}
 }

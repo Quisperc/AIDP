@@ -13,7 +13,9 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
@@ -54,6 +56,9 @@ public class AuthorizationServerConfig {
 						.loginPage("/login")
 						.permitAll())
 				.logout((logout) -> logout
+						.logoutRequestMatcher(new OrRequestMatcher(
+								new AntPathRequestMatcher("/logout", "GET"),
+								new AntPathRequestMatcher("/logout", "POST")))
 						.logoutSuccessHandler(ssoLogoutSuccessHandler)
 						.permitAll())
 				.oauth2ResourceServer((resourceServer) -> resourceServer

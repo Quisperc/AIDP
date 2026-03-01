@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.GrantedAuthority;
@@ -49,9 +50,16 @@ public class TokenConfig {
 		return keyPair;
 	}
 
+	@Value("${spring.security.oauth2.authorizationserver.issuer:${app.base-url:}}")
+	private String issuer;
+
 	@Bean
 	public AuthorizationServerSettings authorizationServerSettings() {
-		return AuthorizationServerSettings.builder().build();
+		var builder = AuthorizationServerSettings.builder();
+		if (issuer != null && !issuer.isBlank()) {
+			builder.issuer(issuer);
+		}
+		return builder.build();
 	}
 
 	/**

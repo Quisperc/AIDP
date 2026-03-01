@@ -33,6 +33,6 @@ spring:
             issuer-uri: ${app.auth-server-url} # 【核心】引用下方定义的统一地址
 
 app:
-  # 本地开发使用 localhost，生产部署时通过环境变量覆盖
+  # 认证中心地址（tidp），Feign 调 SSO 接口 + issuer-uri 均用此值；管理端 tum 必须填 tidp，否则 backchannel logout 验签会失败
   auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
-  base-url: ${APP_BASE_URL:http://127.0.0.1:8081}
+  base-url: ${APP_BASE_URL:http://127.0.0.1:8081}  # 管理端自身地址（tum）

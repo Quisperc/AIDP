@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Base64;
 import java.util.List;
 
 @RestController
@@ -30,28 +31,32 @@ public class SsoLogoutController {
 		}
 
 		try {
-			// 1. Initialize Decoder (using JwkSetUri from Issuer)
-			// Ideally this should be a Bean, but for simplicity we create it here
+			// 用 token 里的 iss 拼 JWK URL（仅当与配置 issuer 一致时），避免 tidp 实际 issuer 与客户端配置略有差异导致验签失败
+			String issFromToken = getIssuerFromTokenPayload(logoutToken);
+			String base = issuerUri != null ? issuerUri.replaceAll("/$", "") : "";
+			if (issFromToken != null && !issFromToken.isEmpty()
+					&& base.equals(issFromToken.replaceAll("/$", ""))) {
+				base = issFromToken.replaceAll("/$", "");
+			}
+			String jwkSetUri = base + "/oauth2/jwks";
+
 			org.springframework.security.oauth2.jwt.JwtDecoder decoder = org.springframework.security.oauth2.jwt.NimbusJwtDecoder
-					.withJwkSetUri(issuerUri + "/oauth2/jwks")
+					.withJwkSetUri(jwkSetUri)
 					.build();
 
-			// 2. Decode & Verify
 			org.springframework.security.oauth2.jwt.Jwt jwt = decoder.decode(logoutToken);
 
-			// 3. Validate Claims
 			if (!jwt.getAudience().contains(clientId)) {
 				throw new IllegalStateException("Invalid audience: " + jwt.getAudience());
 			}
-			if (!jwt.getIssuer().toString().equals(issuerUri)) {
+			String expectedIssuer = issuerUri != null ? issuerUri.replaceAll("/$", "") : "";
+			if (!expectedIssuer.equals(jwt.getIssuer().toString().replaceAll("/$", ""))) {
 				throw new IllegalStateException("Invalid issuer: " + jwt.getIssuer());
 			}
 
-			// 4. Extract Subject (Username)
 			String username = jwt.getSubject();
 			System.out.println("OIDC Logout received for user: " + username);
 
-			// 5. Invalidate Session
 			expireUserSessions(username);
 
 			return "Logged out";
@@ -59,6 +64,26 @@ public class SsoLogoutController {
 		} catch (Exception e) {
 			System.err.println("OIDC Logout Failed: " + e.getMessage());
 			return "Bad Request";
+		}
+	}
+
+	/** 从未验签的 JWT payload 中解析 iss，仅用于选择 JWK Set URI（且仅当与配置 issuer 一致时使用） */
+	private static String getIssuerFromTokenPayload(String token) {
+		try {
+			int i = token.indexOf('.');
+			int j = token.indexOf('.', i + 1);
+			if (j <= i) return null;
+			String payload = token.substring(i + 1, j);
+			byte[] decoded = Base64.getUrlDecoder().decode(payload);
+			String json = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
+			int issIdx = json.indexOf("\"iss\"");
+			if (issIdx < 0) return null;
+			int colon = json.indexOf(':', issIdx + 1);
+			int start = json.indexOf('"', colon + 1) + 1;
+			int end = json.indexOf('"', start);
+			return start > 0 && end > start ? json.substring(start, end) : null;
+		} catch (Exception e) {
+			return null;
 		}
 	}
 

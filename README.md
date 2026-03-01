@@ -104,14 +104,13 @@ mvn spring-boot:run
     *   **手动**: 使用 `scripts/ClientSqlGenerator.java` 生成 SQL 插入。
 
 ### 2. OIDC Back-Channel Logout (统一退出)
-实现了 OIDC 标准的后端广播退出机制，比传统的 Session 清除更安全、彻底。
+实现了 OIDC 标准的后端广播退出机制。除「在子系统点击退出并跳转 SSO」外，**修改账号/密码成功后**也会通过「先清本端会话再重定向到 SSO /logout」触发同一次全局退出。
 
 *   **流程**:
-    1.  用户在任意子系统点击退出。
-    2.  Auth Server 收到退出请求，清除 SSO Session。
-    3.  Auth Server 根据数据库记录，向 **所有** 该用户登录过的子系统发送 HTTP POST 请求 (`/api/sso-logout`)。
-    4.  请求体包含一个 **Logout Token** (JWT)，由 Auth Server 私钥签名。
-    5.  子系统验证 JWT 签名和 Claims (Audience, Issuer)，验证通过后销毁本地 Session。
+    1.  用户触发全局退出（在 SSO 点击退出，或修改资料成功后由客户端重定向到 SSO `/logout`）。
+    2.  Auth Server 清除 SSO Session 及该用户的授权同意（consent）。
+    3.  Auth Server 向所有已注册客户端的 `/api/sso-logout` 发送 HTTP POST，请求体为 **Logout Token** (JWT)，由 Auth Server 私钥签名。
+    4.  各子系统使用 Auth Server 公钥 (`/oauth2/jwks`) 验证签名及 `iss`、`aud`，验证通过后通过 SessionRegistry 销毁对应用户的本地 Session。
 
 ### 3. 配置与隐私保护
 *   **Auth Server**：根目录 `application.yml` 通过 `spring.config.import: optional:file:./application-secret.yml` 加载 `application-secret.yml`。其中应覆盖：数据库连接、`spring.security.oauth2.authorizationserver.issuer`（显式指定 OIDC Issuer，保证 Discovery 与 Token 中 `iss` 一致）、`app.base-url` 及 `app.auth.initial-client` 等生产用值。
@@ -293,7 +292,7 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
         1.  使用 Auth Server 的公钥 (`/oauth2/jwks`) 验证签名。
         2.  校验 `iss` (Issuer) 和 `aud` (Audience)。
         3.  提取 `sub` (用户名) 并通过 `SessionRegistry` 销毁对应 Session。
-*   **效果**: 所有系统同时掉线。用户下次刷新页面时，会自动跳转回首页。
+*   **效果**: 所有系统同时掉线。各客户端会话过期后，会按配置的 `expiredUrl`（如 `/login`）跳转到登录页。
 
 ### 2. 子系统退出 (Single Client Logout)
 *   **触发**: 在子系统 (如 8081) 点击退出。
@@ -424,28 +423,37 @@ public RegisteredClientRepository registeredClientRepository() {
 
 ## 🛠️ 用户自助服务 (Phase 4)
 
-支持用户修改自己的**用户名**和**密码**。
+支持用户修改自己的**用户名**和**密码**；修改成功后触发**全局退出**，需使用新账号/密码重新登录。
 
 ### 1. 核心逻辑 (`PUT /api/users/me`)
-为了安全起见，我们增加了一个专门的 API `me`，而不是复用 `PUT /api/users/{id}`。
-*   Auth Server 会自动从 Token 中获取当前用户的 `username`。
-*   用户只能修改**自己的**信息。
-*   API 层面**严格忽略**了 `role` 和 `enabled` 字段的修改请求，防止普通用户提权。
+*   Auth Server 从 JWT 中获取当前用户的 `username`，用户只能修改**自己的**信息。
+*   API 层面**严格忽略** `role`、`enabled` 的修改，防止提权。
+*   修改用户名时，若新用户名已被占用则返回 **409**；客户端可提示「该用户名已被使用」。
 
 ### 2. 页面交互
-*   **入口**: 访问 `/profile` 页面，或者从“用户管理”页面的右上角进入（仅限管理员）。
-*   **修改密码**: 留空则不修改。
-*   **修改用户名**: 一旦修改成功，系统会强制您**重新登录**（因为 access token 中的 `sub` 字段失效了）。
+*   **入口**: 管理后台 `/user/profile`（或从用户管理页进入）。
+*   **表单**: 新用户名、新密码、确认密码；至少填一项，修改密码时两次输入须一致。
+*   **修改成功后**: 自动走「先清本端会话 → 跳 SSO 登出 → 回本机登录页」流程，无需手动点退出。
 
-### 3. 全局登出 (Global Logout)
-以前的 Logout 只是清除了 Client App 的 Cookie，并没有通知 Auth Server，导致“点登录”立刻又进来了。
-现在的流程如下：
-*   用户在 Client App 点击 **Logout**。
-*   Client App 清除本地会话 (`CLIENT_SESSIONID`)。
-*   Client App 自动跳转到 Auth Server 的 `/connect/logout` 端点。
-*   Auth Server 清除 SSO 会话 (`AUTH_SESSIONID`)。
-*   Auth Server 根据配置 (`post-logout-redirect-uri`) 将用户重定向回 Client App 的首页。
-*   由于此时双方会话均已清除，用户处于**彻底登出**状态。
+### 3. 修改账号/密码后的全局退出流程（推荐生产用法）
+
+采用**先清客户端会话，再请求 SSO 退出**，避免回跳时仍带旧会话、无竞态、不依赖额外 query 参数：
+
+1. 用户在管理端提交修改，Client 调用 Auth Server `PUT /api/users/me`，保存成功。
+2. **本端先登出**：在同一请求内使当前 Session 失效（`invalidate`）并清空 `SecurityContextHolder`。
+3. 返回 **302**，重定向到认证中心 `/logout?redirect_uri=<本机登录页>`（例如 `https://tum.civer.cn/login`）。
+4. 浏览器访问认证中心 `/logout`：认证中心清除 SSO 会话，执行一次 **Back-Channel Logout**（清 consent + 向各客户端 POST `/api/sso-logout`）。
+5. 认证中心根据 `redirect_uri` 将浏览器重定向回客户端的登录页（仅允许已注册客户端 `redirect_uris` 所在 host 的 URL）。
+6. 用户落在客户端登录页，会话已彻底清除，使用新账号/密码重新登录即可。
+
+**配置要点**（多域名时，如 tidp / tum）：
+*   **认证中心**：`app.base-url` 须为对外 Issuer（如 `https://tidp.civer.cn`），与各客户端 `issuer-uri` 一致，否则 Back-Channel 验签会失败。
+*   **客户端**：`app.auth-server-url`、OAuth2 的 `issuer-uri` 均指向认证中心（如 `https://tidp.civer.cn`）；`app.base-url` 为本系统地址（如 `https://tum.civer.cn`），用于拼 `redirect_uri`。
+*   数据库 `oauth2_registered_client` 中该客户端的 `redirect_uris` 需包含本机 host（如 `https://tum.civer.cn/...`），这样 `https://tum.civer.cn/login` 才会被允许作为 logout 的 `redirect_uri`。
+
+### 4. 普通退出（在子系统点击「退出」）
+*   用户在子系统点击 **Logout** → 子系统清除本地会话，并跳转到认证中心 `oauth2/revoke-consent` 或 `/logout`。
+*   若跳转到认证中心 `/logout`，则与上文一致：认证中心清 SSO 会话并做一次 Back-Channel 广播，可带 `redirect_uri` 回指定页面。
 
 ---
 

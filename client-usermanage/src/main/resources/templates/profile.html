@@ -139,6 +139,78 @@
 			fill: currentColor;
 		}
 
+		.edit-section {
+			margin-top: 40px;
+			padding-top: 32px;
+			border-top: 1px solid rgba(255, 255, 255, 0.08);
+			text-align: left;
+		}
+
+		.edit-title {
+			color: #ffffff;
+			font-size: 20px;
+			font-weight: 600;
+			margin-bottom: 8px;
+		}
+
+		.edit-hint {
+			color: rgba(255, 255, 255, 0.6);
+			font-size: 13px;
+			margin-bottom: 24px;
+		}
+
+		.edit-form .form-group {
+			margin-bottom: 20px;
+		}
+
+		.edit-form label {
+			display: block;
+			color: rgba(255, 255, 255, 0.8);
+			font-size: 14px;
+			margin-bottom: 8px;
+		}
+
+		.edit-form .form-input {
+			width: 100%;
+			padding: 12px 16px;
+			background: rgba(255, 255, 255, 0.06);
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			border-radius: 12px;
+			color: #fff;
+			font-size: 15px;
+			box-sizing: border-box;
+		}
+
+		.edit-form .form-input::placeholder {
+			color: rgba(255, 255, 255, 0.4);
+		}
+
+		.edit-form .error-msg {
+			color: #f87171;
+			font-size: 14px;
+			margin-bottom: 16px;
+			padding: 10px 14px;
+			background: rgba(248, 113, 113, 0.15);
+			border-radius: 8px;
+		}
+
+		.edit-form .btn-submit {
+			margin-top: 8px;
+			padding: 14px 28px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border: none;
+			border-radius: 12px;
+			color: #fff;
+			font-size: 15px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: opacity 0.2s;
+		}
+
+		.edit-form .btn-submit:hover {
+			opacity: 0.9;
+		}
+
 		/* Responsive */
 		@media (max-width: 480px) {
 			.profile-card {
@@ -194,6 +266,32 @@
 					<span class="info-value" sec:authentication="principal.authorities">Roles</span>
 				</div>
 			</div>
+
+			<!-- 修改账号/密码表单：修改成功后将全局退出，需重新登录 -->
+			<section class="edit-section">
+				<h2 class="edit-title">修改账号信息</h2>
+				<p class="edit-hint">修改用户名或密码后将在所有设备上退出登录，请使用新信息重新登录。</p>
+				<form th:action="@{/user/profile}" method="post" class="edit-form" id="profileForm">
+					<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+					<div th:if="${error}" class="error-msg" th:text="${error}">错误信息</div>
+					<div class="form-group">
+						<label for="username">新用户名（不修改请留空）</label>
+						<input type="text" id="username" name="username" th:value="${user?.username}" placeholder="留空表示不修改"
+							autocomplete="username" class="form-input" />
+					</div>
+					<div class="form-group">
+						<label for="password">新密码（不修改请留空）</label>
+						<input type="password" id="password" name="password" placeholder="留空表示不修改"
+							autocomplete="new-password" class="form-input" />
+					</div>
+					<div class="form-group">
+						<label for="confirmPassword">确认新密码</label>
+						<input type="password" id="confirmPassword" name="confirmPassword" placeholder="仅修改密码时必填"
+							autocomplete="new-password" class="form-input" />
+					</div>
+					<button type="submit" class="btn-submit">保存并全局退出</button>
+				</form>
+			</section>
 
 		</div>
 	</div>
