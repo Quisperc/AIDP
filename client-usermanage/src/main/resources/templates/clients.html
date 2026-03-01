@@ -23,7 +23,7 @@
 		}
 
 		.container {
-			max-width: 800px;
+			max-width: 1200px;
 			margin: 0 auto;
 			padding: 40px 24px;
 			animation: fadeIn 0.6s ease-out;
@@ -208,6 +208,114 @@
 			fill: currentColor;
 		}
 
+		/* Table */
+		.table-card {
+			background: rgba(255, 255, 255, 0.05);
+			backdrop-filter: blur(20px);
+			-webkit-backdrop-filter: blur(20px);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 16px;
+			overflow: hidden;
+			margin-bottom: 32px;
+		}
+
+		.table-wrapper {
+			overflow-x: auto;
+		}
+
+		.table-card table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.table-card th,
+		.table-card td {
+			padding: 16px 20px;
+			text-align: left;
+		}
+
+		.table-card th {
+			background: rgba(255, 255, 255, 0.03);
+			color: rgba(255, 255, 255, 0.6);
+			font-size: 12px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.table-card td {
+			color: #ffffff;
+			font-size: 14px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+		}
+
+		.table-card tr:last-child td {
+			border-bottom: none;
+		}
+
+		.table-card tr:hover td {
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.client-id {
+			color: rgba(255, 255, 255, 0.9);
+			font-family: 'SF Mono', Monaco, monospace;
+			font-size: 13px;
+		}
+
+		.actions {
+			display: flex;
+			gap: 8px;
+		}
+
+		.btn-action {
+			padding: 8px 14px;
+			border: none;
+			border-radius: 8px;
+			font-size: 13px;
+			font-weight: 500;
+			font-family: inherit;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			text-decoration: none;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.btn-action svg {
+			width: 14px;
+			height: 14px;
+			fill: currentColor;
+		}
+
+		.btn-edit {
+			background: rgba(102, 126, 234, 0.15);
+			color: #a5b4fc;
+			border: 1px solid rgba(102, 126, 234, 0.3);
+		}
+
+		.btn-edit:hover {
+			background: rgba(102, 126, 234, 0.25);
+		}
+
+		.btn-delete {
+			background: rgba(239, 68, 68, 0.15);
+			color: #fca5a5;
+			border: 1px solid rgba(239, 68, 68, 0.3);
+		}
+
+		.btn-delete:hover {
+			background: rgba(239, 68, 68, 0.25);
+		}
+
+		.table-empty {
+			text-align: center;
+			color: rgba(255, 255, 255, 0.5);
+			padding: 48px 20px;
+		}
+
 		/* Responsive */
 		@media (max-width: 640px) {
 			.container {
@@ -250,6 +358,48 @@
 			<span th:text="${error}"></span>
 		</div>
 
+		<div class="table-card">
+			<div class="table-wrapper">
+				<table>
+					<thead>
+						<tr>
+							<th>Client ID</th>
+							<th>客户端名称</th>
+							<th>Redirect URI</th>
+							<th>Post Logout Redirect URI</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:if="${#lists.isEmpty(clients)}">
+							<td colspan="5" class="table-empty">暂无客户端，请在下方注册新客户端。</td>
+						</tr>
+						<tr th:each="c : ${clients}">
+							<td><span class="client-id" th:text="${c.clientId}"></span></td>
+							<td th:text="${c.clientName}"></td>
+							<td th:text="${c.redirectUri}" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.redirectUri}"></td>
+							<td th:text="${c.postLogoutRedirectUri}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.postLogoutRedirectUri}"></td>
+							<td>
+								<div class="actions">
+									<a th:href="@{/admin/clients/edit(clientId=${c.clientId})}" class="btn-action btn-edit">
+										<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+										编辑
+									</a>
+									<form th:action="@{/admin/clients/delete}" method="post" style="display:inline;" onsubmit="return confirm('确定要删除该客户端吗？删除后该客户端的授权记录也会被清除。');">
+										<input type="hidden" name="clientId" th:value="${c.clientId}">
+										<button type="submit" class="btn-action btn-delete">
+											<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+											删除
+										</button>
+									</form>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
 		<div class="form-card">
 			<div class="form-header">
 				<div class="form-icon">
@@ -284,7 +434,7 @@
 				<div class="form-group">
 					<label>Redirect URI</label>
 					<input type="text" name="redirectUri"
-						placeholder="http://localhost:8080/login/oauth2/code/my-client" required />
+						placeholder="http://localhost:8080/login/oauth2/code/oidc-client" required />
 					<p class="form-hint">OAuth2 callback URL for this client</p>
 				</div>
 

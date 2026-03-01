@@ -216,8 +216,8 @@
 						d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
 				</svg>
 				<div class="alert-content">
-					<div class="alert-title">Authentication Failed</div>
-					<div class="alert-message">Unable to authenticate. Please try again.</div>
+					<div class="alert-title" th:text="${param.error[0] == 'client_config' ? '应用配置错误' : 'Authentication Failed'}">Authentication Failed</div>
+					<div class="alert-message" th:text="${param.error[0] == 'client_config' ? '应用与认证中心的配置不一致（如客户端密钥不正确），请联系管理员检查本应用的 OAuth2 配置后重试。' : 'Unable to authenticate. Please try again.'}">Unable to authenticate. Please try again.</div>
 				</div>
 			</div>
 

@@ -10,7 +10,7 @@
     </parent>
     <groupId>cn.civer</groupId>
     <artifactId>auth-server</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <name>auth-server</name>
     <description>Unified Authentication System</description>
     <properties>
