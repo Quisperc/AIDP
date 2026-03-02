@@ -28,6 +28,11 @@ public class AuthorizationServerConfig {
 	@Bean
 	@Order(1)
 	public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+		// 仅对 OAuth2/OIDC 端点使用本链，/login、/ 等由 defaultSecurityFilterChain 处理
+		http.securityMatcher(new OrRequestMatcher(
+				new AntPathRequestMatcher("/oauth2/**"),
+				new AntPathRequestMatcher("/.well-known/oauth-authorization-server"),
+				new AntPathRequestMatcher("/.well-known/openid-configuration")));
 		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
 				.authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint.consentPage("/oauth2/consent"))
@@ -49,7 +54,7 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/css/**", "/js/**", "/images/**", "/error", "/.well-known/**").permitAll()
+						.requestMatchers("/", "/login", "/favicon.ico", "/css/**", "/js/**", "/images/**", "/error", "/.well-known/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form

@@ -36,7 +36,15 @@ public class ErrorPageController implements ErrorController {
 		}
 		// 将 OAuth2 客户端相关错误统一为友好提示
 		message = toFriendlyMessage(status, message);
-		log.info("[error page] status={}, message={}, backUrl={}", status, message, request.getParameter("backUrl"));
+		// Chrome DevTools 等会请求 /.well-known/appspecific/...，404 不刷 INFO 日志
+		String requestUri = request.getRequestURI();
+		boolean noisy404 = status == 404 && requestUri != null && requestUri.contains(".well-known/appspecific");
+		if (noisy404) {
+			log.debug("[error page] status={}, message={}, uri={}", status, message, requestUri);
+		} else {
+			log.info("[error page] status={}, message={}, backUrl={}", status, message,
+					request.getParameter("backUrl"));
+		}
 
 		model.addAttribute("status", status);
 		model.addAttribute("message", message);

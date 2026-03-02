@@ -270,6 +270,7 @@
 					<label for="password">Password</label>
 					<input type="password" id="password" name="password" placeholder="Enter your password" required />
 				</div>
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 				<button type="submit" class="btn-submit">Sign In</button>
 			</form>
 		</div>
