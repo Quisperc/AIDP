@@ -34,6 +34,14 @@ spring:
 app:
   # 认证中心对外 issuer（tidp 部署时须为 https://tidp.civer.cn），与各客户端 issuer-uri 一致，否则 backchannel logout 验签失败
   base-url: ${APP_BASE_URL:http://127.0.0.1:8080}
+  # 底部备案信息（留空则不显示）
+  footer:
+    icp: "蜀ICP备2025159968号-1"          # 例如：京ICP备xxxxxxxx号
+    icp-url: "https://beian.miit.gov.cn/"
+    icp-icon: "/images/icp.png"     # ICP 备案图标。静态文件放 static 目录下，URL 用 /images/xxx.png（不要写 /static）
+    police: "川公网安备51012402001520号"       # 例如：京公网安备xxxxxxxxxxxx号
+    police-url: "https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=51012402001520"   # 公安备案查询链接，如各省公安厅备案查询页
+    police-icon: "/images/beian.png"  # 公安备案图标，同上，路径为 /images/xxx.png
 
   auth:
     # Initial Client Data (Auto-registered on startup if missing)

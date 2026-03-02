@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+	<footer class="site-footer" th:fragment="footer">
+		<div class="footer-inner" th:if="${!#strings.isEmpty(footerIcp) or !#strings.isEmpty(footerPolice)}">
+			<a th:if="${!#strings.isEmpty(footerIcp)}" th:attr="href=${footerIcpUrl}" target="_blank" rel="noopener noreferrer" class="footer-link footer-item">
+				<img th:if="${!#strings.isEmpty(footerIcpIconSrc)}" th:src="${footerIcpIconSrc}" class="footer-icon" alt="ICP"/>
+				<span th:text="${footerIcp}">ICP备案号</span>
+			</a>
+			<span th:if="${!#strings.isEmpty(footerIcp) and !#strings.isEmpty(footerPolice)}" class="footer-sep">|</span>
+			<a th:if="${!#strings.isEmpty(footerPolice) and !#strings.isEmpty(footerPoliceUrl)}" th:attr="href=${footerPoliceUrl}" target="_blank" rel="noopener noreferrer" class="footer-link footer-item">
+				<img th:if="${!#strings.isEmpty(footerPoliceIconSrc)}" th:src="${footerPoliceIconSrc}" class="footer-icon" alt="公安备案"/>
+				<span th:text="${footerPolice}">公安备案号</span>
+			</a>
+			<span th:if="${!#strings.isEmpty(footerPolice) and #strings.isEmpty(footerPoliceUrl)}" class="footer-link footer-item">
+				<img th:if="${!#strings.isEmpty(footerPoliceIconSrc)}" th:src="${footerPoliceIconSrc}" class="footer-icon" alt="公安备案"/>
+				<span th:text="${footerPolice}">公安备案号</span>
+			</span>
+		</div>
+	</footer>
+</body>
+</html>

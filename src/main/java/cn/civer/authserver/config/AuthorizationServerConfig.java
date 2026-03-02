@@ -49,7 +49,7 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/css/**", "/js/**", "/error", "/.well-known/**").permitAll()
+						.requestMatchers("/", "/login", "/css/**", "/js/**", "/images/**", "/error", "/.well-known/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form
