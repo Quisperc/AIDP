@@ -4,7 +4,6 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 
 @Controller
-public class ErrorPageController implements ErrorController {
+public class ErrorPageController {
 
 	private static final Logger log = LoggerFactory.getLogger(ErrorPageController.class);
 	private static final String FRIENDLY_CLIENT_INVALID = "该客户端未在认证中心注册或已失效，请联系系统管理员在认证中心重新配置后再试。";

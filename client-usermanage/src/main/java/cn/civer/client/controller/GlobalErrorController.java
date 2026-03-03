@@ -1,11 +1,10 @@
 package cn.civer.client.controller;
 
-import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
-public class GlobalErrorController implements ErrorController {
+public class GlobalErrorController {
 
 	@RequestMapping("/error")
 	public String handleError(jakarta.servlet.http.HttpServletRequest request) {

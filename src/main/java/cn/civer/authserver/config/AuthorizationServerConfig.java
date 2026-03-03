@@ -3,19 +3,12 @@ package cn.civer.authserver.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
@@ -24,30 +17,6 @@ public class AuthorizationServerConfig {
 
 	@org.springframework.beans.factory.annotation.Autowired
 	private cn.civer.authserver.handler.SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
-
-	@Bean
-	@Order(1)
-	public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
-		// 仅对 OAuth2/OIDC 端点使用本链，/login、/ 等由 defaultSecurityFilterChain 处理
-		http.securityMatcher(new OrRequestMatcher(
-				new AntPathRequestMatcher("/oauth2/**"),
-				new AntPathRequestMatcher("/.well-known/oauth-authorization-server"),
-				new AntPathRequestMatcher("/.well-known/openid-configuration")));
-		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-				.authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint.consentPage("/oauth2/consent"))
-				.oidc(Customizer.withDefaults());
-
-		http
-				.exceptionHandling((exceptions) -> exceptions
-						.defaultAuthenticationEntryPointFor(
-								new LoginUrlAuthenticationEntryPoint("/login"),
-								new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
-				.oauth2ResourceServer((resourceServer) -> resourceServer
-						.jwt(Customizer.withDefaults()));
-
-		return http.build();
-	}
 
 	@Bean
 	@Order(2)
@@ -61,9 +30,7 @@ public class AuthorizationServerConfig {
 						.loginPage("/login")
 						.permitAll())
 				.logout((logout) -> logout
-						.logoutRequestMatcher(new OrRequestMatcher(
-								new AntPathRequestMatcher("/logout", "GET"),
-								new AntPathRequestMatcher("/logout", "POST")))
+						.logoutUrl("/logout")
 						.logoutSuccessHandler(ssoLogoutSuccessHandler)
 						.permitAll())
 				.oauth2ResourceServer((resourceServer) -> resourceServer

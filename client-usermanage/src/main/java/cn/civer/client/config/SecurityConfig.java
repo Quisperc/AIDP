@@ -1,55 +1,56 @@
 package cn.civer.client.config;
 
+import cn.civer.client.handler.CustomAuthenticationSuccessHandler;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
 	private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
-	private final org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository;
-	private final cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
-
 	private static final String REGISTRATION_ID = "oidc-client";
 
-	@org.springframework.beans.factory.annotation.Value("${server.servlet.session.cookie.name}")
+	private final ClientRegistrationRepository clientRegistrationRepository;
+	private final CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+
+	@Value("${server.servlet.session.cookie.name}")
 	private String cookieName;
 
-	@org.springframework.beans.factory.annotation.Value("${app.base-url}")
+	@Value("${app.base-url}")
 	private String baseUrl;
 
-	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
+	@Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
 	private String clientId;
 
-	public SecurityConfig(
-			org.springframework.security.oauth2.client.registration.ClientRegistrationRepository clientRegistrationRepository,
-			cn.civer.client.handler.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
+	public SecurityConfig(ClientRegistrationRepository clientRegistrationRepository,
+						  CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
 		this.clientRegistrationRepository = clientRegistrationRepository;
 		this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
 	}
@@ -60,12 +61,12 @@ public class SecurityConfig {
 		if (reg == null) {
 			throw new IllegalStateException("OAuth2 client registration '" + REGISTRATION_ID + "' not found");
 		}
-		String issuer = reg.getProviderDetails().getIssuerUri();
+		var issuer = reg.getProviderDetails().getIssuerUri();
 		if (issuer != null) {
 			return issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
 		}
 		// 兼容：从 token endpoint 推导 base URL
-		String tokenUri = reg.getProviderDetails().getTokenUri();
+		var tokenUri = reg.getProviderDetails().getTokenUri();
 		return tokenUri.replaceFirst("/oauth2/token$", "").replaceFirst("/oauth2/token\\?.*$", "");
 	}
 
@@ -75,23 +76,19 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
 						.requestMatchers("/error", "/login").permitAll()
-						.requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
-								"/api/sso-logout"))
-						.permitAll()
+						.requestMatchers("/api/sso-logout").permitAll()
 						.anyRequest().authenticated())
-				.csrf(csrf -> csrf.ignoringRequestMatchers(
-						new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/sso-logout")))
+				// 允许来自 Auth Server 的后端登出回调不带 CSRF Token
+				.csrf(csrf -> csrf.ignoringRequestMatchers("/api/sso-logout"))
 				.oauth2Login(oauth2 -> oauth2
 						.loginPage("/login")
 						.failureHandler(this::onOAuth2LoginFailure)
-						.userInfoEndpoint(userInfo -> userInfo
-								.oidcUserService(this.oidcUserService()))
+						.userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService()))
 						.successHandler(customAuthenticationSuccessHandler))
 				.logout(logout -> logout
-						.logoutRequestMatcher(
-								new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/logout"))
-						// Local logout + Redirect to Auth Server to revoke consent (but keep SSO
-						// session)
+						// Spring Security 7 默认使用 PathPattern 并要求 POST /logout
+						.logoutUrl("/logout")
+						// Local logout + Redirect to Auth Server to revoke consent (but keep SSO session)
 						.logoutSuccessUrl(String.format("%s/oauth2/revoke-consent?client_id=%s&redirect_uri=%s/",
 								getAuthServerIssuerUri(), clientId, baseUrl))
 						.invalidateHttpSession(true)
@@ -105,15 +102,16 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public org.springframework.security.core.session.SessionRegistry sessionRegistry() {
-		return new org.springframework.security.core.session.SessionRegistryImpl();
+	public SessionRegistry sessionRegistry() {
+		return new SessionRegistryImpl();
 	}
 
 	/**
 	 * OAuth2 登录失败时区分「客户端配置错误」（如密钥错误）与其它认证失败，便于登录页展示不同提示。
 	 */
 	private void onOAuth2LoginFailure(HttpServletRequest request, HttpServletResponse response,
-			org.springframework.security.core.AuthenticationException exception) throws IOException, ServletException {
+									  org.springframework.security.core.AuthenticationException exception)
+			throws IOException, ServletException {
 		String errorParam = "error";
 		String code = null;
 		if (exception instanceof OAuth2AuthenticationException oauth2Ex && oauth2Ex.getError() != null) {
@@ -128,18 +126,19 @@ public class SecurityConfig {
 		}
 		log.warn("[OAuth2 login failure] exception={}, errorCode={}, redirectParam={}, message={}",
 				exception.getClass().getSimpleName(), code, errorParam, exception.getMessage());
-		new SimpleUrlAuthenticationFailureHandler("/login?" + errorParam).onAuthenticationFailure(request, response, exception);
+		new SimpleUrlAuthenticationFailureHandler("/login?" + errorParam)
+				.onAuthenticationFailure(request, response, exception);
 	}
 
 	private static boolean isClientConfigError(Throwable t) {
 		for (Throwable ex = t; ex != null; ex = ex.getCause()) {
-			String msg = ex.getMessage();
+			var msg = ex.getMessage();
 			if (msg != null) {
-				String lower = msg.toLowerCase();
+				var lower = msg.toLowerCase();
 				if (lower.contains("invalid_client") || lower.contains("invalid_grant")
 						|| lower.contains("invalid_token_response")
 						|| lower.contains("client_secret") || lower.contains("client credentials")
-						|| lower.contains("401") && (lower.contains("unauthorized") || lower.contains("authorization required"))) {
+						|| (lower.contains("401") && (lower.contains("unauthorized") || lower.contains("authorization required")))) {
 					return true;
 				}
 			}
@@ -148,11 +147,11 @@ public class SecurityConfig {
 	}
 
 	private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
-		final OidcUserService delegate = new OidcUserService();
+		var delegate = new OidcUserService();
 
-		return (userRequest) -> {
+		return userRequest -> {
 			// Delegate to the default implementation for loading a user
-			OidcUser oidcUser = delegate.loadUser(userRequest);
+			var oidcUser = delegate.loadUser(userRequest);
 
 			// Fetch the authority information from the protected resource or ID Token
 			Collection<GrantedAuthority> mappedAuthorities = new HashSet<>();

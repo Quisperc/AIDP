@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 
 import jakarta.servlet.ServletException;
@@ -78,8 +77,8 @@ public class SecurityConfig {
 						.userInfoEndpoint(userInfo -> userInfo
 								.oidcUserService(this.oidcUserService())))
 				.logout(logout -> logout
-						// Allow GET request for logout
-						.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+						// Spring Security 7 默认使用 PathPattern 匹配并要求 POST /logout
+						.logoutUrl("/logout")
 						// 1. Invalidate Local Session
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
