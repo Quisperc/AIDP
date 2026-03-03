@@ -1,5 +1,5 @@
 # 选择与你编译环境一致的基础镜像
-FROM maven:3.9.12-eclipse-temurin-21
+FROM maven:3.9.12-eclipse-temurin-25
 
 WORKDIR /build_cache
 

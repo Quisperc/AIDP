@@ -11,6 +11,10 @@ server:
 spring:
   config:
     import: optional:file:./application-secret.yml
+#spring:
+#  config:
+#    import:
+#      - "optional:file:application-secret.yml"
   application:
     name: auth-server
   datasource:
