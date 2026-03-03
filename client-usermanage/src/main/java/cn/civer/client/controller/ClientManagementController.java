@@ -1,7 +1,7 @@
 package cn.civer.client.controller;
 
-import cn.civer.client.client.ClientFeignClient;
-import feign.FeignException;
+import cn.civer.client.client.ClientServiceClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,22 +21,22 @@ import java.util.List;
 public class ClientManagementController {
 
 	private static final Logger log = LoggerFactory.getLogger(ClientManagementController.class);
-	private final ClientFeignClient clientFeignClient;
+	private final ClientServiceClient clientServiceClient;
 
-	public ClientManagementController(ClientFeignClient clientFeignClient) {
-		this.clientFeignClient = clientFeignClient;
+	public ClientManagementController(ClientServiceClient clientServiceClient) {
+		this.clientServiceClient = clientServiceClient;
 	}
 
 	@GetMapping
 	public String listClients(Model model) {
 		try {
-			List<ClientFeignClient.ClientSummaryDto> clients = clientFeignClient.listClients();
+			List<ClientServiceClient.ClientSummaryDto> clients = clientServiceClient.listClients();
 			model.addAttribute("clients", clients);
 			log.debug("[admin/clients] list size={}", clients != null ? clients.size() : 0);
 		} catch (Exception e) {
 			log.warn("[admin/clients] list failed: {}", e.getMessage());
 			model.addAttribute("error", "加载客户端列表失败: " + toFriendlyMessage(e));
-			model.addAttribute("clients", List.<ClientFeignClient.ClientSummaryDto>of());
+			model.addAttribute("clients", List.<ClientServiceClient.ClientSummaryDto>of());
 		}
 		return "clients";
 	}
@@ -44,7 +44,7 @@ public class ClientManagementController {
 	@GetMapping("/edit")
 	public String editForm(@RequestParam String clientId, Model model, RedirectAttributes redirectAttributes) {
 		try {
-			ClientFeignClient.ClientSummaryDto client = clientFeignClient.getClient(clientId);
+			ClientServiceClient.ClientSummaryDto client = clientServiceClient.getClient(clientId);
 			model.addAttribute("client", client);
 			log.debug("[admin/clients] edit form clientId={}", clientId);
 			return "client-edit";
@@ -62,7 +62,7 @@ public class ClientManagementController {
 			@RequestParam String postLogoutRedirectUri,
 			@RequestParam String clientName,
 			RedirectAttributes redirectAttributes) {
-		ClientFeignClient.ClientDto dto = new ClientFeignClient.ClientDto();
+		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
 		dto.clientId = clientId;
 		dto.clientSecret = clientSecret;
 		dto.redirectUri = redirectUri;
@@ -70,7 +70,7 @@ public class ClientManagementController {
 		dto.clientName = clientName;
 
 		try {
-			clientFeignClient.registerClient(dto);
+			clientServiceClient.registerClient(dto);
 			redirectAttributes.addFlashAttribute("message", "客户端注册成功！");
 			log.info("[admin/clients] registered clientId={}", clientId);
 		} catch (Exception e) {
@@ -87,14 +87,14 @@ public class ClientManagementController {
 			@RequestParam String postLogoutRedirectUri,
 			@RequestParam String clientName,
 			RedirectAttributes redirectAttributes) {
-		ClientFeignClient.ClientDto dto = new ClientFeignClient.ClientDto();
+		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
 		dto.clientId = clientId;
 		dto.clientSecret = (clientSecret != null && !clientSecret.isBlank()) ? clientSecret : null;
 		dto.redirectUri = redirectUri;
 		dto.postLogoutRedirectUri = postLogoutRedirectUri;
 		dto.clientName = clientName;
 		try {
-			clientFeignClient.updateClient(clientId, dto);
+			clientServiceClient.updateClient(clientId, dto);
 			redirectAttributes.addFlashAttribute("message", "客户端更新成功！");
 			log.info("[admin/clients] updated clientId={}", clientId);
 		} catch (Exception e) {
@@ -107,7 +107,7 @@ public class ClientManagementController {
 	@PostMapping("/delete")
 	public String deleteClient(@RequestParam String clientId, RedirectAttributes redirectAttributes) {
 		try {
-			clientFeignClient.deleteClient(clientId);
+			clientServiceClient.deleteClient(clientId);
 			redirectAttributes.addFlashAttribute("message", "客户端已删除。");
 			log.info("[admin/clients] deleted clientId={}", clientId);
 		} catch (Exception e) {
@@ -125,16 +125,16 @@ public class ClientManagementController {
 		if (msg == null) {
 			return "请稍后重试。";
 		}
-		// Feign 返回体可能包含 JSON，尝试提取可读信息
-		if (e instanceof FeignException feignEx) {
-			int status = feignEx.status();
+		// RestClient 4xx/5xx 会抛出 ResponseException，尝试提取可读信息
+		if (e instanceof RestClientResponseException re) {
+			int status = re.getStatusCode().value();
 			if (status == 409) {
 				return "该 Client ID 已被使用，请换一个。";
 			}
 			if (status == 404) {
 				return "客户端不存在或已失效。";
 			}
-			String body = feignEx.contentUTF8();
+			String body = re.getResponseBodyAsString();
 			if (body != null && body.contains("already exists")) {
 				return "该 Client ID 已被使用，请换一个。";
 			}

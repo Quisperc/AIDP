@@ -6,7 +6,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 
 @SpringBootApplication
 @EnableMethodSecurity
-@org.springframework.cloud.openfeign.EnableFeignClients
 public class ClientApplication {
 
 	public static void main(String[] args) {

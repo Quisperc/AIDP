@@ -22,10 +22,10 @@ spring:
     init:
       mode: always # always: 每次启动尝试运行 schema.sql (如果存在)
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update # update: 自动根据 Entity 更新表结构，不会删除数据
     show-sql: true # 控制台打印 SQL，方便调试
+    open-in-view: false # 显式关闭 Open Session in View，避免视图层访问数据库
   security:
     oauth2:
       authorizationserver:

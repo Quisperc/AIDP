@@ -2,7 +2,6 @@ package cn.civer.authserver.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,11 +18,10 @@ public class AuthorizationServerConfig {
 	private cn.civer.authserver.handler.SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
 
 	@Bean
-	@Order(2)
-	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/favicon.ico", "/css/**", "/js/**", "/images/**", "/error", "/.well-known/**").permitAll()
+						.requestMatchers("/", "/login", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form
@@ -33,6 +31,10 @@ public class AuthorizationServerConfig {
 						.logoutUrl("/logout")
 						.logoutSuccessHandler(ssoLogoutSuccessHandler)
 						.permitAll())
+				.oauth2AuthorizationServer(authorizationServer -> authorizationServer
+						.oidc(Customizer.withDefaults())
+						.authorizationEndpoint(authorizationEndpoint ->
+								authorizationEndpoint.consentPage("/oauth2/consent")))
 				.oauth2ResourceServer((resourceServer) -> resourceServer
 						.jwt(Customizer.withDefaults()));
 

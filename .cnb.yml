@@ -11,6 +11,7 @@ main:
             # 只有当 pom.xml 内容变动时，才会重新下载依赖构建新镜像
             by: 
               - pom.xml
+              - client-usermanage/pom.xml
           exports:
             # 将生成的缓存镜像名导出给后续 Stage 使用
             name: DOCKER_CACHE_IMAGE
@@ -28,11 +29,17 @@ main:
             
             # 统一产物名称，确保 1Panel 端配置固定
             - mv target/*.jar target/Auth-Server.jar
+
+            # 执行编译与部署，--no-transfer-progress 减少日志输出防止超限
+            - cd client-usermanage
+            - mvn -B clean deploy -DskipTests -s ../temp_settings.xml --no-transfer-progress
+            # 统一产物名称，确保 1Panel 端配置固定
+            - mv target/*.jar target/UserManage-Server.jar
             
             # 清理敏感信息
-            - rm -f ./temp_settings.xml
+            - rm -f ../temp_settings.xml
 
-        - name: 3. 同步至服务器并重启容器
+        - name: 3. 同步至服务器并重启容器 Auth-Server
           image: tencentcom/rsync
           settings:
             user: $SERVER_USER
@@ -41,9 +48,26 @@ main:
               - $SERVER_HOST
             # 仅推送编译好的 jar 包
             source: ./target/Auth-Server.jar
-            target: /home/idp/auth-server/
+            target: /home/idp/auth_server/
             script:
               - cd /opt/1panel/runtime/java/idp_auth_server/
+              
+              - docker compose up -d --force-recreate
+              # 清理服务器上的虚悬镜像，释放空间
+              # - docker image prune -f
+        
+        - name: 4. 同步至服务器并重启容器 UserManage-Server
+          image: tencentcom/rsync
+          settings:
+            user: $SERVER_USER
+            key: $SERVER_KEY
+            hosts: 
+              - $SERVER_HOST
+            # 仅推送编译好的 jar 包
+            source: ./client-usermanage/target/UserManage-Server.jar
+            target: /home/idp/user_manage/
+            script:
+              - cd /opt/1panel/runtime/java/idp_user_manage/
               
               - docker compose up -d --force-recreate
               # 清理服务器上的虚悬镜像，释放空间

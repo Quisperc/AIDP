@@ -1,6 +1,6 @@
-# Spring Boot 3 OIDC 统一认证系统 (SSO)
+# Spring Boot 4 OIDC 统一认证系统 (SSO)
 
-本项目演示了一个基于 **Spring Boot 3.2** 和 **Spring Authorization Server (SAS)** 的完整单点登录 (SSO) 解决方案。系统实现了标准的 **OIDC (OpenID Connect)** 协议，支持多客户端接入、统一登录、统一退出（Back-Channel Logout）。
+本项目演示了一个基于 **Spring Boot 4.0.3** 和 **Spring Authorization Server (SAS)** 的完整单点登录 (SSO) 解决方案。系统实现了标准的 **OIDC (OpenID Connect)** 协议，支持多客户端接入、统一登录、统一退出（Back-Channel Logout）。
 
 ## 🏗 系统架构
 
@@ -16,7 +16,7 @@
 
 2.  **管理后台 (Client UserManage)** - `client-usermanage`
     *   **端口**: `8081`
-    *   **职责**: 系统管理员后台。通过 OAuth2 登录，使用 Feign 调用 Auth Server API 管理用户和客户端。
+    *   **职责**: 系统管理员后台。通过 OAuth2 登录，使用 **Spring HTTP Service Client（基于 RestClient 的声明式接口）** 调用 Auth Server API 管理用户和客户端。
 
 3.  **接入示例子系统 (Client Template)** - `client-template`
     *   **端口**: `8089` (默认)
@@ -119,7 +119,7 @@ mvn spring-boot:run
 ### 3. 认证中心错误页与客户端登录失败提示
 *   **客户端未注册或无效**：用户使用未在认证中心注册的 `client_id` 访问授权地址时，会进入**自定义错误页**（非 Whitelabel），提示「该客户端未在认证中心注册或已失效，请联系系统管理员在认证中心重新配置后再试。」，并提供「返回」（返回上一页或指定 backUrl）、「前往SSO登录」。
 *   **客户端密钥错误**：OAuth2 中 client_secret 仅在用授权码换 Token 时校验，无法在同意页提前拦截。若应用配置的密钥与认证中心不一致，用户同意授权后会在**客户端登录页**看到「应用配置错误」及「应用与认证中心的配置不一致（如客户端密钥不正确），请联系管理员检查本应用的 OAuth2 配置后重试。」（通过 `?error=client_config` 区分）；其它认证失败仍显示「Authentication Failed」。
-*   管理后台客户端操作的失败信息会转为简短中文提示（如 409→「该 Client ID 已被使用」、404→「客户端不存在或已失效」），避免整段 HTTP/Feign 错误原文展示给用户。
+*   管理后台客户端操作的失败信息会转为简短中文提示（如 409→「该 Client ID 已被使用」、404→「客户端不存在或已失效」），避免整段 HTTP/客户端错误原文展示给用户。
 
 ### 4. 配置与隐私保护
 *   **Auth Server**：根目录 `application.yml` 通过 `spring.config.import: optional:file:./application-secret.yml` 加载 `application-secret.yml`。其中应覆盖：数据库连接、`spring.security.oauth2.authorizationserver.issuer`（显式指定 OIDC Issuer，保证 Discovery 与 Token 中 `iss` 一致）、`app.base-url` 及 `app.auth.initial-client` 等生产用值。
@@ -194,7 +194,7 @@ APP_BASE_URL=https://um.civer.cn
 APP_AUTH_SERVER_URL=https://idp.civer.cn
 APP_BASE_URL=https://c1.civer.cn   # 该子系统对外访问地址
 ```
-Client 只需配置上述两个变量即可同时生效：OIDC 发现（issuer-uri）、Feign 调用 Auth Server 的 base URL、以及退出时跳转的认证中心地址（由代码从 OAuth2 注册信息中的 issuer 推导）。
+Client 只需配置上述两个变量即可同时生效：OIDC 发现（issuer-uri）、HTTP Service Client 调用 Auth Server 的 base URL、以及退出时跳转的认证中心地址（由代码从 OAuth2 注册信息中的 issuer 推导）。
 
 ### 3. HTTPS + 反向代理
 
@@ -489,4 +489,4 @@ public RegisteredClientRepository registeredClientRepository() {
 
 4.  **生产环境 Issuer 与配置简化**
     *   **Auth Server**：通过 `spring.security.oauth2.authorizationserver.issuer` 显式指定 OIDC Issuer，避免反向代理后 Discovery 返回 `http://`。`app.base-url` 仅用于业务侧拼链接，不参与 SAS 的 issuer 计算。
-    *   **Client**：退出跳转的认证中心地址由代码从已注册的 OAuth2 Client 的 `issuer-uri` 推导，与 `issuer-uri` 配置一致，无需单独维护一份“认证中心 URL”；Feign 仍通过 `app.auth-server-url`（与 issuer-uri 同源）配置 base URL。
+    *   **Client**：退出跳转的认证中心地址由代码从已注册的 OAuth2 Client 的 `issuer-uri` 推导，与 `issuer-uri` 配置一致，无需单独维护一份“认证中心 URL”；HTTP Service Client（基于 RestClient）仍通过 `app.auth-server-url`（与 issuer-uri 同源）配置 base URL。

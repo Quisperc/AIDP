@@ -10,7 +10,7 @@
     </parent>
     <groupId>cn.civer</groupId>
     <artifactId>client-usermanage</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
     <name>client-usermanage</name>
     <description>SSO Client Demo</description>
     <properties>
@@ -53,16 +53,23 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
         <!-- Needed for JWT verification (OIDC Back-Channel Logout) -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
     </dependencies>
+
+
+    <!-- CI 发布用：将构建产物 deploy 到 CNB Maven 制品库。
+         仅包含仓库地址和 ID，不包含任何账号或 Token，凭证统一在 settings.xml 中配置。 -->
+    <distributionManagement>
+        <repository>
+            <id>cnb-maven</id>
+            <name>CNB Maven Repository</name>
+            <url>https://maven.cnb.cool/civer/cnb-maven/-/packages/</url>
+        </repository>
+    </distributionManagement>
 
     <dependencyManagement>
         <dependencies>

@@ -9,7 +9,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestParam;
-import feign.FeignException;
+import org.springframework.web.client.RestClientResponseException;
 import cn.civer.client.service.UserService;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -65,8 +65,8 @@ public class ProfileController {
 		}
 		try {
 			userService.updateCurrentUserProfile(user);
-		} catch (FeignException e) {
-			String message = e.status() == 409 ? "该用户名已被使用，请换一个。" : "修改失败，请稍后重试。";
+		} catch (RestClientResponseException e) {
+			String message = e.getStatusCode().value() == 409 ? "该用户名已被使用，请换一个。" : "修改失败，请稍后重试。";
 			model.addAttribute("user", user);
 			model.addAttribute("principal", org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal());
 			model.addAttribute("error", message);
@@ -77,14 +77,15 @@ public class ProfileController {
 			model.addAttribute("error", "修改失败，请稍后重试。");
 			return "profile";
 		}
-		// 修改成功：先清本端会话再跳 SSO 登出，避免回跳时仍带旧会话；无竞态、不依赖 query 参数，更宜生产
+		// 修改成功：先清本端会话再触发 SSO 全局退出（撤销所有客户端授权），避免回跳时仍带旧会话
 		if (request.getSession(false) != null) {
 			request.getSession().invalidate();
 		}
 		org.springframework.security.core.context.SecurityContextHolder.clearContext();
 		String returnTo = (baseUrl == null || baseUrl.isEmpty() ? "" : baseUrl.replaceAll("/$", "")) + "/login";
-		String logoutUrl = (authServerUrl == null ? "" : authServerUrl.replaceAll("/$", "")) + "/logout?redirect_uri="
+		String logoutAllUrl = (authServerUrl == null ? "" : authServerUrl.replaceAll("/$", ""))
+				+ "/oauth2/logout-all?redirect_uri="
 				+ java.net.URLEncoder.encode(returnTo, java.nio.charset.StandardCharsets.UTF_8);
-		return "redirect:" + logoutUrl;
+		return "redirect:" + logoutAllUrl;
 	}
 }

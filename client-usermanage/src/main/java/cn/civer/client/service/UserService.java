@@ -1,6 +1,6 @@
 package cn.civer.client.service;
 
-import cn.civer.client.client.UserFeignClient;
+import cn.civer.client.client.UserServiceClient;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 
@@ -9,14 +9,14 @@ import java.util.List;
 @Service
 public class UserService {
 
-	private final UserFeignClient userFeignClient;
+	private final UserServiceClient userServiceClient;
 
-	public UserService(UserFeignClient userFeignClient) {
-		this.userFeignClient = userFeignClient;
+	public UserService(UserServiceClient userServiceClient) {
+		this.userServiceClient = userServiceClient;
 	}
 
 	public List<UserDto> getUsers() {
-		return userFeignClient.getUsers();
+		return userServiceClient.getUsers();
 	}
 
 	public UserDto getUser(Long id) {
@@ -27,19 +27,19 @@ public class UserService {
 	}
 
 	public UserDto createUser(UserDto user) {
-		return userFeignClient.createUser(user);
+		return userServiceClient.createUser(user);
 	}
 
 	public void updateUser(Long id, UserDto user) {
-		userFeignClient.updateUser(id, user);
+		userServiceClient.updateUser(id, user);
 	}
 
 	public void deleteUser(Long id) {
-		userFeignClient.deleteUser(id);
+		userServiceClient.deleteUser(id);
 	}
 
 	public void updateCurrentUserProfile(UserDto user) {
-		userFeignClient.updateCurrentUser(user);
+		userServiceClient.updateCurrentUser(user);
 	}
 
 	@Data
