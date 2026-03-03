@@ -1,0 +1,50 @@
+main:
+  push:
+    - imports: 
+        - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
+      
+      stages:
+        - name: 1. 构建/匹配依赖缓存镜像
+          type: docker:cache
+          options:
+            dockerfile: cache.dockerfile
+            # 只有当 pom.xml 内容变动时，才会重新下载依赖构建新镜像
+            by: 
+              - pom.xml
+          exports:
+            # 将生成的缓存镜像名导出给后续 Stage 使用
+            name: DOCKER_CACHE_IMAGE
+
+        - name: 2. Maven 编译打包
+          # 使用上面生成的缓存镜像，内部已包含所有依赖
+          image: $DOCKER_CACHE_IMAGE
+          script:
+            # 动态注入凭证并保护权限
+            - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
+            - chmod 600 ./temp_settings.xml
+            
+            # 执行编译与部署，--no-transfer-progress 减少日志输出防止超限
+            - mvn -B clean deploy -DskipTests -s ./temp_settings.xml --no-transfer-progress
+            
+            # 统一产物名称，确保 1Panel 端配置固定
+            - mv target/*.jar target/Auth-Server.jar
+            
+            # 清理敏感信息
+            - rm -f ./temp_settings.xml
+
+        - name: 3. 同步至服务器并重启容器
+          image: tencentcom/rsync
+          settings:
+            user: $SERVER_USER
+            key: $SERVER_KEY
+            hosts: 
+              - $SERVER_HOST
+            # 仅推送编译好的 jar 包
+            source: ./target/Auth-Server.jar
+            target: /home/idp/auth-server/
+            script:
+              - cd /opt/1panel/runtime/java/idp_auth_server/
+              
+              - docker compose up -d --force-recreate
+              # 清理服务器上的虚悬镜像，释放空间
+              # - docker image prune -f

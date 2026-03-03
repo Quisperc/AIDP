@@ -10,7 +10,7 @@
     </parent>
     <groupId>cn.civer</groupId>
     <artifactId>auth-server</artifactId>
-    <version>1.2.2</version>
+    <version>1.2.3</version>
     <name>auth-server</name>
     <description>Unified Authentication System</description>
     <properties>
@@ -92,6 +92,16 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- CI 发布用：将构建产物 deploy 到 CNB Maven 制品库。
+         仅包含仓库地址和 ID，不包含任何账号或 Token，凭证统一在 settings.xml 中配置。 -->
+    <distributionManagement>
+        <repository>
+            <id>cnb-maven</id>
+            <name>CNB Maven Repository</name>
+            <url>https://maven.cnb.cool/civer/cnb-maven/-/packages/</url>
+        </repository>
+    </distributionManagement>
 
     <build>
         <plugins>
