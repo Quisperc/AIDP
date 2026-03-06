@@ -246,6 +246,37 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 ---
 
+## 🔄 持续集成与 CNB 自动发布
+
+本项目已经对接 **CNB 平台** 与 **GitHub Actions**，支持通过**打标签自动构建并发布 Auth-Server / User-Manage**：
+
+1.  **代码同步到 CNB 仓库**（GitHub → CNB）
+    *   GitHub Action `sync-cnb.yml` 在每次 `push` 时触发。
+    *   使用 `tencentcom/git-sync` 镜像，将当前仓库同步到 CNB 上的镜像仓库。
+    *   支持同时同步 **tag**，便于按版本在 CNB 侧触发构建。
+
+2.  **CNB 构建流水线定义**（`.cnb.yml`）
+    *   `auth-v*` 标签：例如 `auth-v2.1.2`，表示一次 **认证中心 (Auth-Server)** 版本发布。
+        *   阶段 1：基于 `cache.dockerfile` 生成一个 **带 Maven 依赖缓存** 的构建镜像（减少后续构建时间）。
+        *   阶段 2：在该缓存镜像内执行 `mvn clean deploy -DskipTests -Drevision=<版本号>`，产出 `Auth-Server.jar`。
+        *   阶段 3：通过 `tencentcom/rsync` 将 Jar 同步到服务器指定目录，并执行 `docker compose up -d --force-recreate` 完成滚动重启。
+    *   `user-v*` 标签：例如 `user-v2.0.7`，表示一次 **管理后台 (User-Manage)** 版本发布。
+        *   构建逻辑与上类似，只是进入 `client-usermanage` 模块，生成 `UserManage-Server.jar` 并同步到对应目录后重启。
+    *   版本号规则：流水线自动从标签名中截取 `v` 之后的部分作为 Maven `revision`（如 `auth-v2.1.2` → `2.1.2`）。
+
+3.  **依赖缓存镜像（`cache.dockerfile`）**
+    *   基于 `maven:3.9.12-eclipse-temurin-25` 构建。
+    *   仅拷贝顶层 `pom.xml` 与 `client-usermanage/pom.xml`，执行 `mvn dependency:go-offline` 预先下载依赖。
+    *   通过 BuildKit 的 `--mount=type=cache,id=maven-cache,target=/root/.m2` 复用 Maven 仓库，**多次构建之间共享依赖缓存**，显著缩短 CI 时间。
+
+**推荐发布流程**：
+
+1. 合并代码到主分支并推送到 GitHub。
+2. 在 GitHub 上创建对应的版本标签（如 `auth-v2.1.2` 或 `user-v2.0.7`）并推送。
+3. 等待 CNB 平台根据 `.cnb.yml` 自动完成构建、上传与远程服务器重启。
+
+---
+
 ## 📦 快速接入 (Client Template)
 
 为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
