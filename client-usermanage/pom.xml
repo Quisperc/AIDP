@@ -10,11 +10,13 @@
     </parent>
     <groupId>cn.civer</groupId>
     <artifactId>client-usermanage</artifactId>
-    <version>2.0.4</version>
+    <!-- <version>2.0.4</version> -->
+    <version>${revision}</version>
     <name>client-usermanage</name>
     <description>SSO Client Demo</description>
     <properties>
         <java.version>22</java.version>
+        <revision>0.0.0-SNAPSHOT</revision>
     </properties>
     <dependencies>
         <!-- OAuth2 Client Starter -->
@@ -59,7 +61,6 @@
             <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
     </dependencies>
-
 
     <!-- CI 发布用：将构建产物 deploy 到 CNB Maven 制品库。
          仅包含仓库地址和 ID，不包含任何账号或 Token，凭证统一在 settings.xml 中配置。 -->
@@ -129,6 +130,33 @@
                     <execution>
                         <goals>
                             <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 该插件在构建时生成扁平化的 .flattened-pom.xml，确保部署到私有仓库的 POM 文件包含正确的版本号（即解析后的实际版本），避免其他项目引用时出现 ${revision} 占位符。 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    <updatePomFile>true</updatePomFile>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
                         </goals>
                     </execution>
                 </executions>

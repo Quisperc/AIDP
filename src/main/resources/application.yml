@@ -35,6 +35,8 @@ spring:
       authorizationserver:
         issuer: ${app.base-url}
 
+
+
 app:
   # 认证中心对外 issuer（tidp 部署时须为 https://tidp.civer.cn），与各客户端 issuer-uri 一致，否则 backchannel logout 验签失败
   base-url: ${APP_BASE_URL:http://127.0.0.1:8080}

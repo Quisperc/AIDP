@@ -1,107 +1,81 @@
-# 定义主分支触发逻辑
 main:
-  # 当有代码推送到仓库时触发
   push:
-    # 引用外部公共配置（如环境变量 MAVEN_USER, SERVER_HOST 等）
     - imports: 
         - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
-      
-      # 定义流水线执行步骤
+      env:
+        AUTH_VERSION: 2.0.12
+        USER_VERSION: 2.0.7
       stages:
-        # --- 第一阶段：依赖预处理 ---
+        # --- 阶段 1：依赖缓存 (全自动处理) ---
         - name: 1. 构建/匹配依赖缓存镜像
-          # 类型为缓存构建，用于加速后续的 Maven 编译
           type: docker:cache
           options:
-            # 指定用于构建环境的 Dockerfile（通常包含 JDK 和 Maven 环境）
             dockerfile: cache.dockerfile
-            # 指纹机制：只有当以下两个 pom 文件内容变化时，才重新下载依赖并打包新镜像
-            by: 
-              - pom.xml
-              - client-usermanage/pom.xml
+            by: [pom.xml, client-usermanage/pom.xml]
           exports:
-            # 将生成的缓存镜像名称导出为变量，供后续步骤使用
             name: DOCKER_CACHE_IMAGE
 
-        # --- 第二阶段：Auth-Server 的独立构建 ---
+        # --- 阶段 2a：Auth Server 编译 (仅当变动时) ---
         - name: 2a. 编译 Auth-Server
-          # 使用第一步生成的镜像，环境内已有预下载好的 jar 包
           image: $DOCKER_CACHE_IMAGE
-          # 增量触发控制：仅当根目录源码或根 pom 变动时执行该步骤
-          when:
-            event: push
-            path: 
-              - "src/**"
-              - "pom.xml"
-              - "!client-usermanage/**"
+          # 核心修正：使用 ifModify 替代 when
+          ifModify:
+            - "src/**"
+            - "pom.xml"
+            - "!(client-usermanage/**)"
           script:
-            # 生成临时的 Maven 配置文件，用于访问私有仓库
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
-            # 限制配置文件权限，防止泄露凭据
             - chmod 600 ./temp_settings.xml
-            # 执行编译、打包并发布到私有 Maven 仓库，跳过测试以提速
-            - mvn -B clean deploy -DskipTests -s ./temp_settings.xml --no-transfer-progress
-            # 将生成的 jar 包重命名为固定名称，方便 1Panel 脚本引用
+            - mvn -B clean deploy -DskipTests -Drevision=$AUTH_VERSION -s ./temp_settings.xml --no-transfer-progress
             - mv target/*.jar target/Auth-Server.jar
-            # 删除敏感配置文件
-            - rm -f ./temp_settings.xml
 
-        # --- 第三阶段：Auth-Server 的独立同步与重启 ---
+        # --- 阶段 3a：Auth Server 同步重启 ---
         - name: 3a. 同步并重启 Auth-Server
-          # 使用 tencentcom 提供的 rsync 官方镜像
           image: tencentcom/rsync
-          # 同样设置增量触发：代码没变就不执行同步，避免无意义的服务重启
-          when:
-            event: push
-            path: 
-              - "src/**"
-              - "pom.xml"
-              - "!client-usermanage/**"
-          settings:
-            user: $SERVER_USER    # 服务器用户名
-            key: $SERVER_KEY      # SSH 私钥
-            hosts: 
-              - $SERVER_HOST      # 目标服务器 IP
-            source: ./target/Auth-Server.jar   # 源文件路径
-            target: /home/idp/auth_server/     # 目标服务器路径
-            script:
-              # 进入 1Panel 对应的容器编排目录
-              - cd /opt/1panel/runtime/java/idp_auth_server/
-              # 强制重新创建并启动容器，应用新的 jar 包
-              - docker compose up -d --force-recreate
-
-        # --- 第四阶段：UserManage-Server 的独立构建 ---
-        - name: 2b. 编译 UserManage-Server
-          image: $DOCKER_CACHE_IMAGE
-          # 增量触发控制：仅当子模块目录 client-usermanage 下的文件变动时执行
-          when:
-            event: push
-            path: ["client-usermanage/**"]
-          script:
-            - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
-            - chmod 600 ./temp_settings.xml
-            # 进入子模块目录进行构建
-            - cd client-usermanage
-            - mvn -B clean deploy -DskipTests -s ../temp_settings.xml --no-transfer-progress
-            # 统一产物名称
-            - mv target/*.jar target/UserManage-Server.jar
-            - rm -f ../temp_settings.xml
-
-        # --- 第五阶段：UserManage-Server 的独立同步与重启 ---
-        - name: 3b. 同步并重启 UserManage-Server
-          image: tencentcom/rsync
-          # 仅当子模块代码变动时触发同步
-          when:
-            event: push
-            path: ["client-usermanage/**"]
+          # 核心修正：使用 ifModify 替代 when
+          ifModify:
+            - "src/**"
+            - "pom.xml"
+            - "!(client-usermanage/**)"
           settings:
             user: $SERVER_USER
             key: $SERVER_KEY
-            hosts: 
-              - $SERVER_HOST
+            hosts: [$SERVER_HOST]
+            source: ./target/Auth-Server.jar
+            target: /home/idp/auth_server/
+            script:
+              - cd /opt/1panel/runtime/java/idp_auth_server/
+              - docker compose up -d --force-recreate
+
+        # --- 阶段 2b：User Manage 编译 (仅当变动时) ---
+        - name: 2b. 编译 User-Manage
+          image: $DOCKER_CACHE_IMAGE
+          # 核心修正：使用 ifModify 替代 when
+          ifModify:
+            - "client-usermanage/**"
+            - "!pom.xml"
+            - "!src/**"
+          script:
+            - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
+            - chmod 600 ./temp_settings.xml
+            - cd client-usermanage
+            - mvn -B clean deploy -DskipTests -Drevision=$USER_VERSION -s ../temp_settings.xml --no-transfer-progress
+            - mv target/*.jar target/UserManage-Server.jar
+
+        # --- 阶段 3b：User Manage 同步重启 ---
+        - name: 3b. 同步并重启 User-Manage
+          image: tencentcom/rsync
+          # 核心修正：使用 ifModify 替代 when
+          ifModify:
+            - "client-usermanage/**"
+            - "!pom.xml"
+            - "!src/**"
+          settings:
+            user: $SERVER_USER
+            key: $SERVER_KEY
+            hosts: [$SERVER_HOST]
             source: ./client-usermanage/target/UserManage-Server.jar
             target: /home/idp/user_manage/
             script:
-              # 进入 1Panel 对应的 UserManage 容器编排目录
               - cd /opt/1panel/runtime/java/idp_user_manage/
               - docker compose up -d --force-recreate
