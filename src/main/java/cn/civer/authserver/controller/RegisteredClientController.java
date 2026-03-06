@@ -84,9 +84,12 @@ public class RegisteredClientController {
 		dto.clientId = client.getClientId();
 		dto.clientName = client.getClientName();
 		dto.redirectUri = client.getRedirectUris() != null && !client.getRedirectUris().isEmpty()
-				? client.getRedirectUris().iterator().next() : null;
-		dto.postLogoutRedirectUri = client.getPostLogoutRedirectUris() != null && !client.getPostLogoutRedirectUris().isEmpty()
-				? client.getPostLogoutRedirectUris().iterator().next() : null;
+				? client.getRedirectUris().iterator().next()
+				: null;
+		dto.postLogoutRedirectUri = client.getPostLogoutRedirectUris() != null
+				&& !client.getPostLogoutRedirectUris().isEmpty()
+						? client.getPostLogoutRedirectUris().iterator().next()
+						: null;
 		return ResponseEntity.ok(dto);
 	}
 
@@ -102,13 +105,15 @@ public class RegisteredClientController {
 				.clientSecret(passwordEncoder.encode(dto.clientSecret))
 				.clientName(dto.clientName)
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
 				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
 				.redirectUri(dto.redirectUri)
 				.postLogoutRedirectUri(dto.postLogoutRedirectUri)
 				.scope(OidcScopes.OPENID)
 				.scope(OidcScopes.PROFILE)
-				.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+				.clientSettings(
+						ClientSettings.builder().requireAuthorizationConsent(true).requireProofKey(false).build())
 				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
 				.build();
 
@@ -130,9 +135,12 @@ public class RegisteredClientController {
 				: existing.getClientSecret();
 		String redirectUri = (dto.redirectUri != null && !dto.redirectUri.isBlank()) ? dto.redirectUri
 				: (existing.getRedirectUris().isEmpty() ? null : existing.getRedirectUris().iterator().next());
-		String postLogoutUri = (dto.postLogoutRedirectUri != null && !dto.postLogoutRedirectUri.isBlank()) ? dto.postLogoutRedirectUri
-				: (existing.getPostLogoutRedirectUris().isEmpty() ? null : existing.getPostLogoutRedirectUris().iterator().next());
-		String clientName = (dto.clientName != null && !dto.clientName.isBlank()) ? dto.clientName : existing.getClientName();
+		String postLogoutUri = (dto.postLogoutRedirectUri != null && !dto.postLogoutRedirectUri.isBlank())
+				? dto.postLogoutRedirectUri
+				: (existing.getPostLogoutRedirectUris().isEmpty() ? null
+						: existing.getPostLogoutRedirectUris().iterator().next());
+		String clientName = (dto.clientName != null && !dto.clientName.isBlank()) ? dto.clientName
+				: existing.getClientName();
 		RegisteredClient updated = RegisteredClient.withId(existing.getId())
 				.clientId(existing.getClientId())
 				.clientSecret(newSecret)
@@ -142,7 +150,8 @@ public class RegisteredClientController {
 				.scopes(s -> s.addAll(existing.getScopes()))
 				.redirectUri(redirectUri != null ? redirectUri : "")
 				.postLogoutRedirectUri(postLogoutUri != null ? postLogoutUri : "")
-				.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+				.clientSettings(
+						ClientSettings.builder().requireAuthorizationConsent(true).requireProofKey(false).build())
 				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
 				.build();
 		registeredClientRepository.save(updated);

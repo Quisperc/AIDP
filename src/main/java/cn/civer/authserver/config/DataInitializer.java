@@ -45,6 +45,8 @@ public class DataInitializer {
 						.clientSecret(passwordEncoder.encode(clientSecret)) // Secret encryption
 						.clientAuthenticationMethod(
 								org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+						.clientAuthenticationMethod(
+								org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_POST)
 						.authorizationGrantType(
 								org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
 						.authorizationGrantType(
@@ -56,7 +58,8 @@ public class DataInitializer {
 						.scope(org.springframework.security.oauth2.core.oidc.OidcScopes.PROFILE)
 						.clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
 								.builder()
-								.requireAuthorizationConsent(true).build()) // Enable Consent!
+								.requireAuthorizationConsent(true).requireProofKey(false).build()) // Enable Consent,
+																									// disable PKCE
 						.tokenSettings(org.springframework.security.oauth2.server.authorization.settings.TokenSettings
 								.builder()
 								.accessTokenTimeToLive(Duration.ofMinutes(30))
