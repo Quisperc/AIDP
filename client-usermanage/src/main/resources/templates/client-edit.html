@@ -140,6 +140,20 @@
 			color: rgba(255, 255, 255, 0.3);
 		}
 
+		.form-group textarea {
+			width: 100%;
+			padding: 10px 14px;
+			border: 1px solid #e0e0e0;
+			border-radius: 8px;
+			font-size: 14px;
+			resize: vertical;
+			box-sizing: border-box;
+		}
+		.form-group textarea:focus {
+			outline: none;
+			border-color: #f093fb;
+			box-shadow: 0 0 0 2px rgba(240, 147, 251, 0.2);
+		}
 		.form-group input:focus {
 			border-color: #f093fb;
 			box-shadow: 0 0 0 4px rgba(240, 147, 251, 0.15);
@@ -246,9 +260,10 @@
 					<input type="text" name="clientName" th:value="${client.clientName}" required>
 				</div>
 				<div class="form-group">
-					<label>Redirect URI</label>
-					<input type="text" name="redirectUri" th:value="${client.redirectUri}"
-						placeholder="http://localhost:8080/login/oauth2/code/oidc-client" required>
+					<label>Redirect URI（可多行，每行一个）</label>
+					<textarea name="redirectUri" rows="4" placeholder="每行一个完整 URL，须与外部系统发起授权时带的 redirect_uri 完全一致（含查询参数）"
+						th:text="${client.redirectUri}" required></textarea>
+					<p class="form-hint">须与第三方发起登录时的 redirect_uri 完全一致，例如：<code>https://re.civer.cn/api/auth/sso_callback?method=get_sso_id</code> 与 <code>...?method=sso_get_token</code> 是不同 URI，可同时填写多行。</p>
 				</div>
 				<div class="form-group">
 					<label>Post Logout Redirect URI</label>

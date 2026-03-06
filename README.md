@@ -104,6 +104,7 @@ mvn spring-boot:run
         *   **列表**: 展示已注册客户端（Client ID、名称、Redirect URI、Post Logout URI），支持**编辑**、**删除**。
         *   **新增**: 表单提交后重定向回列表（Post-Redirect-Get），避免刷新重复提交；重复 Client ID 时认证中心返回 409，页面显示「该 Client ID 已被使用，请换一个。」；默认**开启 PKCE**（安全默认）。
         *   **编辑**: 进入编辑页可修改客户端名称、Redirect URI、Post Logout URI、Client Secret（留空则不修改密钥）以及是否要求 PKCE。
+        *   **Redirect URI 多行**: 支持同一客户端配置**多个 Redirect URI**（表单一栏多行，每行一个）。授权请求中的 `redirect_uri` 必须与其中一条**完全一致**（包括查询参数，如 `?method=get_sso_id` 与 `?method=sso_get_token` 视为不同 URI）。若外部平台会发两种回调链接，可同时填写两行。
         *   **PKCE 开关说明**: 建议保持开启。仅在对接不支持 PKCE 的外部系统（如部分 Gitea、Redmine 部署）时再关闭。
     *   **手动**: 使用 `scripts/ClientSqlGenerator.java` 生成 SQL 插入。
 *   **认证中心 API**（需 ROLE_ADMIN）: `GET/POST/PUT/DELETE /api/clients`、`GET/PUT/DELETE /api/clients/{clientId}`，支持读写 `requirePkce` 字段（`null` 视为 `true`）。
@@ -377,7 +378,8 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 *   **Redirect URI (`redirect-uri`)**:
     *   **含义**: **白名单安全机制**。
-    *   **作用**: 当用户登录成功后，认证中心需要把用户“送回”子系统。但是送回哪里呢？为了防止钓鱼攻击（黑客把用户骗到一个假网站），认证中心**只允许**重定向到预先配置好的地址。如果请求中的 `redirect_uri` 与配置不符，认证中心会直接报错。
+    *   **作用**: 当用户登录成功后，认证中心需要把用户“送回”子系统。为了防止钓鱼攻击，认证中心**只允许**重定向到预先配置好的地址。请求中的 `redirect_uri` 必须与**某一条**已注册 URI **完全一致**（含路径与查询参数，例如 `https://re.civer.cn/api/auth/sso_callback?method=get_sso_id` 与 `...?method=sso_get_token` 是两条不同 URI）。
+    *   **多 URI**：同一客户端可注册多条 Redirect URI。若外部系统在不同场景下发不同回调链接（如一种带 `method=get_sso_id`，另一种带 `method=sso_get_token`），在管理后台「Redirect URI」中每行填一条即可。
 
 *   **授权类型 (`Authorization Grant Type`)**:
     *   **`authorization_code` (授权码模式)**: 最安全的模式。用户只能看到一个临时的“Code”，真正的 Token 是子系统在后台用 Code + Secret 换来的，Token 不会暴露在浏览器中。
