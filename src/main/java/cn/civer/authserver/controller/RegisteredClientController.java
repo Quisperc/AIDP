@@ -26,6 +26,7 @@ class ClientDto {
 	public String redirectUri;
 	public String postLogoutRedirectUri;
 	public String clientName;
+	public Boolean requirePkce; // null → default true (secure by default)
 }
 
 // DTO for list item and get (no secret)
@@ -35,6 +36,7 @@ class ClientSummaryDto {
 	public String clientName;
 	public String redirectUri;
 	public String postLogoutRedirectUri;
+	public boolean requirePkce;
 }
 
 @RestController
@@ -90,6 +92,7 @@ public class RegisteredClientController {
 				&& !client.getPostLogoutRedirectUris().isEmpty()
 						? client.getPostLogoutRedirectUris().iterator().next()
 						: null;
+		dto.requirePkce = client.getClientSettings().isRequireProofKey();
 		return ResponseEntity.ok(dto);
 	}
 
@@ -112,8 +115,10 @@ public class RegisteredClientController {
 				.postLogoutRedirectUri(dto.postLogoutRedirectUri)
 				.scope(OidcScopes.OPENID)
 				.scope(OidcScopes.PROFILE)
-				.clientSettings(
-						ClientSettings.builder().requireAuthorizationConsent(true).requireProofKey(false).build())
+				.clientSettings(ClientSettings.builder()
+						.requireAuthorizationConsent(true)
+						.requireProofKey(dto.requirePkce != null ? dto.requirePkce : true)
+						.build())
 				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
 				.build();
 
@@ -141,6 +146,7 @@ public class RegisteredClientController {
 						: existing.getPostLogoutRedirectUris().iterator().next());
 		String clientName = (dto.clientName != null && !dto.clientName.isBlank()) ? dto.clientName
 				: existing.getClientName();
+		boolean pkce = dto.requirePkce != null ? dto.requirePkce : existing.getClientSettings().isRequireProofKey();
 		RegisteredClient updated = RegisteredClient.withId(existing.getId())
 				.clientId(existing.getClientId())
 				.clientSecret(newSecret)
@@ -150,8 +156,10 @@ public class RegisteredClientController {
 				.scopes(s -> s.addAll(existing.getScopes()))
 				.redirectUri(redirectUri != null ? redirectUri : "")
 				.postLogoutRedirectUri(postLogoutUri != null ? postLogoutUri : "")
-				.clientSettings(
-						ClientSettings.builder().requireAuthorizationConsent(true).requireProofKey(false).build())
+				.clientSettings(ClientSettings.builder()
+						.requireAuthorizationConsent(true)
+						.requireProofKey(pkce)
+						.build())
 				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
 				.build();
 		registeredClientRepository.save(updated);

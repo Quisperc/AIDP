@@ -102,10 +102,11 @@ mvn spring-boot:run
 *   **管理方式**:
     *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients` 进行图形化**增删改查**：
         *   **列表**: 展示已注册客户端（Client ID、名称、Redirect URI、Post Logout URI），支持**编辑**、**删除**。
-        *   **新增**: 表单提交后重定向回列表（Post-Redirect-Get），避免刷新重复提交；重复 Client ID 时认证中心返回 409，页面显示「该 Client ID 已被使用，请换一个。」。
-        *   **编辑**: 进入编辑页可修改客户端名称、Redirect URI、Post Logout URI、Client Secret（留空则不修改密钥）。
+        *   **新增**: 表单提交后重定向回列表（Post-Redirect-Get），避免刷新重复提交；重复 Client ID 时认证中心返回 409，页面显示「该 Client ID 已被使用，请换一个。」；默认**开启 PKCE**（安全默认）。
+        *   **编辑**: 进入编辑页可修改客户端名称、Redirect URI、Post Logout URI、Client Secret（留空则不修改密钥）以及是否要求 PKCE。
+        *   **PKCE 开关说明**: 建议保持开启。仅在对接不支持 PKCE 的外部系统（如部分 Gitea、Redmine 部署）时再关闭。
     *   **手动**: 使用 `scripts/ClientSqlGenerator.java` 生成 SQL 插入。
-*   **认证中心 API**（需 ROLE_ADMIN）: `GET/POST/PUT/DELETE /api/clients`、`GET/PUT/DELETE /api/clients/{clientId}`，便于其它管理端或脚本集成。
+*   **认证中心 API**（需 ROLE_ADMIN）: `GET/POST/PUT/DELETE /api/clients`、`GET/PUT/DELETE /api/clients/{clientId}`，支持读写 `requirePkce` 字段（`null` 视为 `true`）。
 
 ### 2. OIDC Back-Channel Logout (统一退出)
 实现了 OIDC 标准的后端广播退出机制。除「在子系统点击退出并跳转 SSO」外，**修改账号/密码成功后**也会通过「先清本端会话再重定向到 SSO /logout」触发同一次全局退出。
@@ -315,8 +316,9 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
     | `app.auth-server-url` | 认证中心地址，如 `https://idp.civer.cn`，可用 `APP_AUTH_SERVER_URL` 覆盖 |
     | `app.base-url` | 本系统对外地址，如 `http://127.0.0.1:8082`，可用 `APP_BASE_URL` 覆盖 |
 
-4.  **注册客户端**: 在 Auth Server 中注册该客户端（Client ID、Secret、Redirect URI、Post Logout URI 等）
+4.  **注册客户端**: 在 Auth Server 中注册该客户端（Client ID、Secret、Redirect URI、Post Logout URI、是否要求 PKCE 等）
     *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients` 进行新增；后续可在同一页编辑、删除。
+    *   **默认策略**: 新建客户端默认开启 PKCE；若第三方系统不支持，再按需取消。
     *   **手动**: 运行 `scripts/ClientSqlGenerator.java` 生成 SQL
 
 5.  **启动开发**: `mvn spring-boot:run` 即可加入 SSO 生态
@@ -393,8 +395,9 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 | `app.auth.initial-client.client-id` / 数据库 | `spring.security.oauth2.client.registration.oidc-client.client-id` | ✅ 是 |
 | `app.auth.initial-client.client-secret` / 数据库 | `spring.security.oauth2.client.registration.oidc-client.client-secret` | ✅ 是 |
 | `redirect_uris` (数据库) | `redirect-uri: ${app.base-url}/login/oauth2/code/{registrationId}` 解析后 | ✅ 是 |
+| `requireProofKey` (数据库/客户端配置) | 客户端是否发送 PKCE 参数（`code_challenge` / `code_verifier`） | ✅ 建议一致（默认开启） |
 
-只有这三者完全匹配，握手才能成功。
+前 3 项必须完全匹配，握手才能成功；第 4 项建议保持一致以获得更高安全性（推荐开启 PKCE）。
 
 **区分两个 ID**：配置里的 **`oidc-client`** 是 Spring 本地 **registrationId**（用于 `findByRegistrationId("oidc-client")`、回调路径 `/login/oauth2/code/oidc-client`），不会发给 Auth Server；**`client-id: client-usermanage`** 才是 OAuth2 协议中的客户端标识，与 Auth Server 数据库中的客户端一致。
 

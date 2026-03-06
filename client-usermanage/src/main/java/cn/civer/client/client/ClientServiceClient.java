@@ -37,6 +37,7 @@ public interface ClientServiceClient {
 		public String redirectUri;
 		public String postLogoutRedirectUri;
 		public String clientName;
+		public Boolean requirePkce;
 	}
 
 	class ClientSummaryDto {
@@ -45,5 +46,6 @@ public interface ClientServiceClient {
 		public String clientName;
 		public String redirectUri;
 		public String postLogoutRedirectUri;
+		public boolean requirePkce;
 	}
 }

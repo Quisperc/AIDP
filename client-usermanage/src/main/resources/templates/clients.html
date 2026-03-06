@@ -377,18 +377,30 @@
 						<tr th:each="c : ${clients}">
 							<td><span class="client-id" th:text="${c.clientId}"></span></td>
 							<td th:text="${c.clientName}"></td>
-							<td th:text="${c.redirectUri}" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.redirectUri}"></td>
-							<td th:text="${c.postLogoutRedirectUri}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.postLogoutRedirectUri}"></td>
+							<td th:text="${c.redirectUri}"
+								style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+								title="${c.redirectUri}"></td>
+							<td th:text="${c.postLogoutRedirectUri}"
+								style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+								title="${c.postLogoutRedirectUri}"></td>
 							<td>
 								<div class="actions">
-									<a th:href="@{/admin/clients/edit(clientId=${c.clientId})}" class="btn-action btn-edit">
-										<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+									<a th:href="@{/admin/clients/edit(clientId=${c.clientId})}"
+										class="btn-action btn-edit">
+										<svg viewBox="0 0 24 24">
+											<path
+												d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+										</svg>
 										编辑
 									</a>
-									<form th:action="@{/admin/clients/delete}" method="post" style="display:inline;" onsubmit="return confirm('确定要删除该客户端吗？删除后该客户端的授权记录也会被清除。');">
+									<form th:action="@{/admin/clients/delete}" method="post" style="display:inline;"
+										onsubmit="return confirm('确定要删除该客户端吗？删除后该客户端的授权记录也会被清除。');">
 										<input type="hidden" name="clientId" th:value="${c.clientId}">
 										<button type="submit" class="btn-action btn-delete">
-											<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+											<svg viewBox="0 0 24 24">
+												<path
+													d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+											</svg>
 											删除
 										</button>
 									</form>
@@ -441,6 +453,15 @@
 				<div class="form-group">
 					<label>Post Logout Redirect URI</label>
 					<input type="text" name="postLogoutRedirectUri" placeholder="http://localhost:8080/" required />
+				</div>
+
+				<div class="form-group">
+					<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+						<input type="checkbox" name="requirePkce" value="true" checked
+							style="width:18px;height:18px;accent-color:#f093fb;cursor:pointer;" />
+						要求 PKCE (Proof Key for Code Exchange)
+					</label>
+					<p class="form-hint">建议开启。对接不支持 PKCE 的外部系统时（如 Gitea、Redmine 等），取消勾选。</p>
 				</div>
 
 				<div class="form-divider"></div>

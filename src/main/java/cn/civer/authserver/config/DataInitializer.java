@@ -58,8 +58,8 @@ public class DataInitializer {
 						.scope(org.springframework.security.oauth2.core.oidc.OidcScopes.PROFILE)
 						.clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
 								.builder()
-								.requireAuthorizationConsent(true).requireProofKey(false).build()) // Enable Consent,
-																									// disable PKCE
+								.requireAuthorizationConsent(true).requireProofKey(true).build()) // Enable Consent &
+																									// PKCE
 						.tokenSettings(org.springframework.security.oauth2.server.authorization.settings.TokenSettings
 								.builder()
 								.accessTokenTimeToLive(Duration.ofMinutes(30))

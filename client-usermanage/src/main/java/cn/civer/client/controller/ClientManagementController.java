@@ -61,6 +61,7 @@ public class ClientManagementController {
 			@RequestParam String redirectUri,
 			@RequestParam String postLogoutRedirectUri,
 			@RequestParam String clientName,
+			@RequestParam(required = false, defaultValue = "false") boolean requirePkce,
 			RedirectAttributes redirectAttributes) {
 		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
 		dto.clientId = clientId;
@@ -68,6 +69,7 @@ public class ClientManagementController {
 		dto.redirectUri = redirectUri;
 		dto.postLogoutRedirectUri = postLogoutRedirectUri;
 		dto.clientName = clientName;
+		dto.requirePkce = requirePkce;
 
 		try {
 			clientServiceClient.registerClient(dto);
@@ -86,6 +88,7 @@ public class ClientManagementController {
 			@RequestParam String redirectUri,
 			@RequestParam String postLogoutRedirectUri,
 			@RequestParam String clientName,
+			@RequestParam(required = false, defaultValue = "false") boolean requirePkce,
 			RedirectAttributes redirectAttributes) {
 		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
 		dto.clientId = clientId;
@@ -93,6 +96,7 @@ public class ClientManagementController {
 		dto.redirectUri = redirectUri;
 		dto.postLogoutRedirectUri = postLogoutRedirectUri;
 		dto.clientName = clientName;
+		dto.requirePkce = requirePkce;
 		try {
 			clientServiceClient.updateClient(clientId, dto);
 			redirectAttributes.addFlashAttribute("message", "客户端更新成功！");
@@ -149,7 +153,8 @@ public class ClientManagementController {
 			return "客户端不存在或已失效。";
 		}
 		// 避免把整段 HTTP 错误原文展示给用户
-		if (msg.contains("Internal Error") || msg.contains("during [POST]") || msg.contains("during [GET]") || msg.contains("during [PUT]") || msg.contains("during [DELETE]")) {
+		if (msg.contains("Internal Error") || msg.contains("during [POST]") || msg.contains("during [GET]")
+				|| msg.contains("during [PUT]") || msg.contains("during [DELETE]")) {
 			return "认证中心暂时不可用，请稍后重试。";
 		}
 		return msg.length() > 120 ? msg.substring(0, 120) + "…" : msg;
