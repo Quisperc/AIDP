@@ -1,74 +1,103 @@
+# 定义主分支触发逻辑
 main:
+  # 当有代码推送到仓库时触发
   push:
+    # 引用外部公共配置（如环境变量 MAVEN_USER, SERVER_HOST 等）
     - imports: 
         - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
       
+      # 定义流水线执行步骤
       stages:
+        # --- 第一阶段：依赖预处理 ---
         - name: 1. 构建/匹配依赖缓存镜像
+          # 类型为缓存构建，用于加速后续的 Maven 编译
           type: docker:cache
           options:
+            # 指定用于构建环境的 Dockerfile（通常包含 JDK 和 Maven 环境）
             dockerfile: cache.dockerfile
-            # 只有当 pom.xml 内容变动时，才会重新下载依赖构建新镜像
+            # 指纹机制：只有当以下两个 pom 文件内容变化时，才重新下载依赖并打包新镜像
             by: 
               - pom.xml
               - client-usermanage/pom.xml
           exports:
-            # 将生成的缓存镜像名导出给后续 Stage 使用
+            # 将生成的缓存镜像名称导出为变量，供后续步骤使用
             name: DOCKER_CACHE_IMAGE
 
-        - name: 2. Maven 编译打包
-          # 使用上面生成的缓存镜像，内部已包含所有依赖
+        # --- 第二阶段：Auth-Server 的独立构建 ---
+        - name: 2a. 编译 Auth-Server
+          # 使用第一步生成的镜像，环境内已有预下载好的 jar 包
           image: $DOCKER_CACHE_IMAGE
+          # 增量触发控制：仅当根目录源码或根 pom 变动时执行该步骤
+          when:
+            event: push
+            path: 
+              - "src/**"
+              - "pom.xml"
           script:
-            # 动态注入凭证并保护权限
+            # 生成临时的 Maven 配置文件，用于访问私有仓库
+            - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
+            # 限制配置文件权限，防止泄露凭据
+            - chmod 600 ./temp_settings.xml
+            # 执行编译、打包并发布到私有 Maven 仓库，跳过测试以提速
+            - mvn -B clean deploy -DskipTests -s ./temp_settings.xml --no-transfer-progress
+            # 将生成的 jar 包重命名为固定名称，方便 1Panel 脚本引用
+            - mv target/*.jar target/Auth-Server.jar
+            # 删除敏感配置文件
+            - rm -f ./temp_settings.xml
+
+        # --- 第三阶段：Auth-Server 的独立同步与重启 ---
+        - name: 3a. 同步并重启 Auth-Server
+          # 使用 tencentcom 提供的 rsync 官方镜像
+          image: tencentcom/rsync
+          # 同样设置增量触发：代码没变就不执行同步，避免无意义的服务重启
+          when:
+            event: push
+            path: ["src/**", "pom.xml"]
+          settings:
+            user: $SERVER_USER    # 服务器用户名
+            key: $SERVER_KEY      # SSH 私钥
+            hosts: 
+              - $SERVER_HOST      # 目标服务器 IP
+            source: ./target/Auth-Server.jar   # 源文件路径
+            target: /home/idp/auth_server/     # 目标服务器路径
+            script:
+              # 进入 1Panel 对应的容器编排目录
+              - cd /opt/1panel/runtime/java/idp_auth_server/
+              # 强制重新创建并启动容器，应用新的 jar 包
+              - docker compose up -d --force-recreate
+
+        # --- 第四阶段：UserManage-Server 的独立构建 ---
+        - name: 2b. 编译 UserManage-Server
+          image: $DOCKER_CACHE_IMAGE
+          # 增量触发控制：仅当子模块目录 client-usermanage 下的文件变动时执行
+          when:
+            event: push
+            path: ["client-usermanage/**"]
+          script:
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
             - chmod 600 ./temp_settings.xml
-            
-            # 执行编译与部署，--no-transfer-progress 减少日志输出防止超限
-            - mvn -B clean deploy -DskipTests -s ./temp_settings.xml --no-transfer-progress
-            
-            # 统一产物名称，确保 1Panel 端配置固定
-            - mv target/*.jar target/Auth-Server.jar
-
-            # 执行编译与部署，--no-transfer-progress 减少日志输出防止超限
+            # 进入子模块目录进行构建
             - cd client-usermanage
             - mvn -B clean deploy -DskipTests -s ../temp_settings.xml --no-transfer-progress
-            # 统一产物名称，确保 1Panel 端配置固定
+            # 统一产物名称
             - mv target/*.jar target/UserManage-Server.jar
-            
-            # 清理敏感信息
             - rm -f ../temp_settings.xml
 
-        - name: 3. 同步至服务器并重启容器 Auth-Server
+        # --- 第五阶段：UserManage-Server 的独立同步与重启 ---
+        - name: 3b. 同步并重启 UserManage-Server
           image: tencentcom/rsync
+          # 仅当子模块代码变动时触发同步
+          when:
+            event: push
+            path: ["client-usermanage/**"]
           settings:
             user: $SERVER_USER
             key: $SERVER_KEY
             hosts: 
               - $SERVER_HOST
-            # 仅推送编译好的 jar 包
-            source: ./target/Auth-Server.jar
-            target: /home/idp/auth_server/
-            script:
-              - cd /opt/1panel/runtime/java/idp_auth_server/
-              
-              - docker compose up -d --force-recreate
-              # 清理服务器上的虚悬镜像，释放空间
-              # - docker image prune -f
-        
-        - name: 4. 同步至服务器并重启容器 UserManage-Server
-          image: tencentcom/rsync
-          settings:
-            user: $SERVER_USER
-            key: $SERVER_KEY
-            hosts: 
-              - $SERVER_HOST
-            # 仅推送编译好的 jar 包
             source: ./client-usermanage/target/UserManage-Server.jar
             target: /home/idp/user_manage/
             script:
+              # 进入 1Panel 对应的 UserManage 容器编排目录
               - cd /opt/1panel/runtime/java/idp_user_manage/
-              
               - docker compose up -d --force-recreate
-              # 清理服务器上的虚悬镜像，释放空间
-              # - docker image prune -f

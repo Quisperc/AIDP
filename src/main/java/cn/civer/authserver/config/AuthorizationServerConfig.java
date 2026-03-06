@@ -21,11 +21,12 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
+						.requestMatchers("/", "/login", "/error", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form
 						.loginPage("/login")
+						.successHandler(new cn.civer.authserver.handler.LoginSuccessHandler())
 						.permitAll())
 				.logout((logout) -> logout
 						.logoutUrl("/logout")

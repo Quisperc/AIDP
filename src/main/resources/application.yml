@@ -55,3 +55,6 @@ app:
       # 支持多个 URI，用逗号分隔
       redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client
       post-logout-redirect-uri: http://127.0.0.1:8080/login
+
+# TODO： Spring Security 自带保存上次请求路径，需要修改默认的登录成功处理器，将请求路径保存到 session 中
+# 登录成功后，若保存的请求是 /error（或 /error?*），则改为重定向到 /，避免出现“登录成功却跳到错误页”的现象。
