@@ -33,6 +33,7 @@ main:
             path: 
               - "src/**"
               - "pom.xml"
+              - "!client-usermanage/**"
           script:
             # 生成临时的 Maven 配置文件，用于访问私有仓库
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
@@ -52,7 +53,10 @@ main:
           # 同样设置增量触发：代码没变就不执行同步，避免无意义的服务重启
           when:
             event: push
-            path: ["src/**", "pom.xml"]
+            path: 
+              - "src/**"
+              - "pom.xml"
+              - "!client-usermanage/**"
           settings:
             user: $SERVER_USER    # 服务器用户名
             key: $SERVER_KEY      # SSH 私钥

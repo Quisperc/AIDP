@@ -7,9 +7,15 @@ WORKDIR /build_cache
 COPY pom.xml .
 COPY client-usermanage/pom.xml client-usermanage/pom.xml
 
-# 预下载所有依赖到镜像内的 /root/.m2
-# go-offline 会下载所有插件和依赖，-B 是非交互模式
-RUN mvn dependency:go-offline -B
+# # 预下载所有依赖到镜像内的 /root/.m2
+# # go-offline 会下载所有插件和依赖，-B 是非交互模式
+# RUN mvn dependency:go-offline -B
 
-# 也可以在此预先创建目录防止权限问题
-RUN mkdir -p /root/.m2
+# # 也可以在此预先创建目录防止权限问题
+# RUN mkdir -p /root/.m2
+
+
+# 使用 BuildKit 挂载缓存目录
+# target 指向镜像内 m2 路径，id 确保不同构建共享同一块缓存存储
+RUN --mount=type=cache,id=maven-cache,target=/root/.m2 \
+    mvn dependency:go-offline -B
