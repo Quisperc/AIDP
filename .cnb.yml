@@ -1,42 +1,35 @@
-main:
-  push:
+# 1. 匹配以 auth-v 开头的标签 (如 auth-v2.1.2)
+"auth-v*":
+  tag_push:
     - imports: 
         - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
-      env:
-        AUTH_VERSION: 2.0.12
-        USER_VERSION: 2.0.7
+      services:
+        - docker
       stages:
-        # --- 阶段 1：依赖缓存 (全自动处理) ---
-        - name: 1. 构建/匹配依赖缓存镜像
+        - name: 1. 匹配依赖缓存
           type: docker:cache
           options:
             dockerfile: cache.dockerfile
-            by: [pom.xml, client-usermanage/pom.xml]
+            tag: maven-common-cache
+            # 必须包含所有被 COPY 的文件，否则上下文就是空的
+            by: 
+              - pom.xml
+              - client-usermanage/pom.xml
           exports:
             name: DOCKER_CACHE_IMAGE
 
-        # --- 阶段 2a：Auth Server 编译 (仅当变动时) ---
         - name: 2a. 编译 Auth-Server
           image: $DOCKER_CACHE_IMAGE
-          # 核心修正：使用 ifModify 替代 when
-          ifModify:
-            - "src/**"
-            - "pom.xml"
-            - "!(client-usermanage/**)"
           script:
+            # 仅提取版本号部分：auth-v2.1.2 -> 2.1.2
+            - AUTH_VERSION=${CNB_BRANCH#auth-v}
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
             - chmod 600 ./temp_settings.xml
             - mvn -B clean deploy -DskipTests -Drevision=$AUTH_VERSION -s ./temp_settings.xml --no-transfer-progress
             - mv target/*.jar target/Auth-Server.jar
 
-        # --- 阶段 3a：Auth Server 同步重启 ---
         - name: 3a. 同步并重启 Auth-Server
           image: tencentcom/rsync
-          # 核心修正：使用 ifModify 替代 when
-          ifModify:
-            - "src/**"
-            - "pom.xml"
-            - "!(client-usermanage/**)"
           settings:
             user: $SERVER_USER
             key: $SERVER_KEY
@@ -47,29 +40,39 @@ main:
               - cd /opt/1panel/runtime/java/idp_auth_server/
               - docker compose up -d --force-recreate
 
-        # --- 阶段 2b：User Manage 编译 (仅当变动时) ---
+# 2. 匹配以 user-v 开头的标签 (如 user-v2.0.7)
+"user-v*":
+  tag_push:
+    - imports: 
+        - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
+      services:
+        - docker
+      stages:
+        - name: 1. 匹配依赖缓存
+          type: docker:cache
+          options:
+            dockerfile: cache.dockerfile
+            tag: maven-common-cache
+            # 必须包含所有被 COPY 的文件，否则上下文就是空的
+            by: 
+              - pom.xml
+              - client-usermanage/pom.xml
+          exports:
+            name: DOCKER_CACHE_IMAGE
+
         - name: 2b. 编译 User-Manage
           image: $DOCKER_CACHE_IMAGE
-          # 核心修正：使用 ifModify 替代 when
-          ifModify:
-            - "client-usermanage/**"
-            - "!pom.xml"
-            - "!src/**"
           script:
+            # 仅提取版本号部分：user-v2.0.7 -> 2.0.7
+            - USER_VERSION=${CNB_BRANCH#user-v}
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
             - chmod 600 ./temp_settings.xml
             - cd client-usermanage
             - mvn -B clean deploy -DskipTests -Drevision=$USER_VERSION -s ../temp_settings.xml --no-transfer-progress
             - mv target/*.jar target/UserManage-Server.jar
 
-        # --- 阶段 3b：User Manage 同步重启 ---
         - name: 3b. 同步并重启 User-Manage
           image: tencentcom/rsync
-          # 核心修正：使用 ifModify 替代 when
-          ifModify:
-            - "client-usermanage/**"
-            - "!pom.xml"
-            - "!src/**"
           settings:
             user: $SERVER_USER
             key: $SERVER_KEY
