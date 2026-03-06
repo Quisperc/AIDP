@@ -162,6 +162,28 @@
 			color: rgba(255, 255, 255, 0.3);
 		}
 
+		.form-group textarea {
+			width: 100%;
+			min-height: 140px;
+			padding: 14px 18px;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 12px;
+			color: #ffffff;
+			font-size: 15px;
+			font-family: inherit;
+			transition: all 0.3s ease;
+			outline: none;
+			resize: vertical;
+			box-sizing: border-box;
+		}
+		.form-group textarea::placeholder {
+			color: rgba(255, 255, 255, 0.3);
+		}
+		.form-group textarea:focus {
+			border-color: #f093fb;
+			box-shadow: 0 0 0 4px rgba(240, 147, 251, 0.15);
+		}
 		.form-group input:focus {
 			border-color: #f093fb;
 			box-shadow: 0 0 0 4px rgba(240, 147, 251, 0.15);
@@ -444,10 +466,10 @@
 				</div>
 
 				<div class="form-group">
-					<label>Redirect URI</label>
-					<input type="text" name="redirectUri"
-						placeholder="http://localhost:8080/login/oauth2/code/oidc-client" required />
-					<p class="form-hint">OAuth2 callback URL for this client</p>
+					<label>Redirect URI（可多行，每行一个）</label>
+					<textarea name="redirectUri" rows="6"
+						placeholder="每行一个完整 URL，须与外部系统发起授权时带的 redirect_uri 完全一致（含查询参数）" required></textarea>
+					<p class="form-hint">须与第三方发起登录时的 redirect_uri 完全一致（含 ?method= 等参数）。若第三方会发两种链接，可同时填写两行。</p>
 				</div>
 
 				<div class="form-group">

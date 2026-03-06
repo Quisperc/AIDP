@@ -16,8 +16,10 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 // DTO for create/update request
 class ClientDto {
@@ -86,8 +88,8 @@ public class RegisteredClientController {
 		dto.clientId = client.getClientId();
 		dto.clientName = client.getClientName();
 		dto.redirectUri = client.getRedirectUris() != null && !client.getRedirectUris().isEmpty()
-				? client.getRedirectUris().iterator().next()
-				: null;
+				? String.join("\n", client.getRedirectUris())
+				: "";
 		dto.postLogoutRedirectUri = client.getPostLogoutRedirectUris() != null
 				&& !client.getPostLogoutRedirectUris().isEmpty()
 						? client.getPostLogoutRedirectUris().iterator().next()
@@ -103,15 +105,22 @@ public class RegisteredClientController {
 			log.warn("[clients] register duplicate: clientId={}", dto.clientId);
 			return ResponseEntity.status(409).body("Client ID already exists: " + dto.clientId);
 		}
-		RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
+		List<String> redirectUris = parseRedirectUris(dto.redirectUri);
+		if (redirectUris.isEmpty()) {
+			return ResponseEntity.badRequest().body("At least one redirect_uri is required.");
+		}
+		RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
 				.clientId(dto.clientId)
 				.clientSecret(passwordEncoder.encode(dto.clientSecret))
 				.clientName(dto.clientName)
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-				.redirectUri(dto.redirectUri)
+				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN);
+		for (String u : redirectUris) {
+			builder = builder.redirectUri(u);
+		}
+		RegisteredClient registeredClient = builder
 				.postLogoutRedirectUri(dto.postLogoutRedirectUri)
 				.scope(OidcScopes.OPENID)
 				.scope(OidcScopes.PROFILE)
@@ -138,8 +147,13 @@ public class RegisteredClientController {
 		String newSecret = (dto.clientSecret != null && !dto.clientSecret.isBlank())
 				? passwordEncoder.encode(dto.clientSecret)
 				: existing.getClientSecret();
-		String redirectUri = (dto.redirectUri != null && !dto.redirectUri.isBlank()) ? dto.redirectUri
-				: (existing.getRedirectUris().isEmpty() ? null : existing.getRedirectUris().iterator().next());
+		List<String> redirectUris = parseRedirectUris(dto.redirectUri);
+		if (redirectUris.isEmpty() && (existing.getRedirectUris() == null || existing.getRedirectUris().isEmpty())) {
+			return ResponseEntity.badRequest().body("At least one redirect_uri is required.");
+		}
+		if (redirectUris.isEmpty()) {
+			redirectUris = existing.getRedirectUris().stream().toList();
+		}
 		String postLogoutUri = (dto.postLogoutRedirectUri != null && !dto.postLogoutRedirectUri.isBlank())
 				? dto.postLogoutRedirectUri
 				: (existing.getPostLogoutRedirectUris().isEmpty() ? null
@@ -147,14 +161,17 @@ public class RegisteredClientController {
 		String clientName = (dto.clientName != null && !dto.clientName.isBlank()) ? dto.clientName
 				: existing.getClientName();
 		boolean pkce = dto.requirePkce != null ? dto.requirePkce : existing.getClientSettings().isRequireProofKey();
-		RegisteredClient updated = RegisteredClient.withId(existing.getId())
+		RegisteredClient.Builder builder = RegisteredClient.withId(existing.getId())
 				.clientId(existing.getClientId())
 				.clientSecret(newSecret)
 				.clientName(clientName)
 				.clientAuthenticationMethods(c -> c.addAll(existing.getClientAuthenticationMethods()))
 				.authorizationGrantTypes(g -> g.addAll(existing.getAuthorizationGrantTypes()))
-				.scopes(s -> s.addAll(existing.getScopes()))
-				.redirectUri(redirectUri != null ? redirectUri : "")
+				.scopes(s -> s.addAll(existing.getScopes()));
+		for (String u : redirectUris) {
+			builder = builder.redirectUri(u);
+		}
+		RegisteredClient updated = builder
 				.postLogoutRedirectUri(postLogoutUri != null ? postLogoutUri : "")
 				.clientSettings(ClientSettings.builder()
 						.requireAuthorizationConsent(true)
@@ -181,5 +198,16 @@ public class RegisteredClientController {
 		jdbcTemplate.update("DELETE FROM oauth2_registered_client WHERE id = ?", id);
 		log.info("[clients] deleted: clientId={}", clientId);
 		return ResponseEntity.ok("Client deleted: " + clientId);
+	}
+
+	/** 解析 redirectUri 字符串为列表，支持多行或逗号分隔（与 OAuth2 请求中的 redirect_uri 必须完全一致，包括查询参数）。 */
+	private static List<String> parseRedirectUris(String value) {
+		if (value == null || value.isBlank()) {
+			return List.of();
+		}
+		return Arrays.stream(value.split("[\\n,\\r]+"))
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.collect(Collectors.toList());
 	}
 }
