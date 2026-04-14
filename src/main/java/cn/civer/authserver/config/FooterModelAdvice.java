@@ -46,16 +46,6 @@ public class FooterModelAdvice {
 		return footerPoliceUrl;
 	}
 
-	@ModelAttribute("footerIcpIcon")
-	public String footerIcpIcon() {
-		return normalizeStaticPath(footerIcpIcon);
-	}
-
-	@ModelAttribute("footerPoliceIcon")
-	public String footerPoliceIcon() {
-		return normalizeStaticPath(footerPoliceIcon);
-	}
-
 	@ModelAttribute("footerIcpIconSrc")
 	public String footerIcpIconSrc(HttpServletRequest request) {
 		return resolveIconSrc(normalizeStaticPath(footerIcpIcon), request);

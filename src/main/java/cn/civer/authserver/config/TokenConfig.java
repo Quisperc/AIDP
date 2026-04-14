@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
@@ -62,6 +64,11 @@ public class TokenConfig {
 		return builder.build();
 	}
 
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
 	/**
 	 * Customize JWT to include roles
 	 */
@@ -69,12 +76,6 @@ public class TokenConfig {
 	public OAuth2TokenCustomizer<JwtEncodingContext> jwtTokenCustomizer() {
 		return (context) -> {
 			if (context.getPrincipal().getPrincipal() instanceof UserDetails user) {
-				Set<String> authorities = user.getAuthorities().stream()
-						.map(GrantedAuthority::getAuthority)
-						.collect(Collectors.toSet());
-				context.getClaims().claim("roles", authorities);
-			} else if (context.getPrincipal()
-					.getPrincipal() instanceof org.springframework.security.core.userdetails.User user) {
 				Set<String> authorities = user.getAuthorities().stream()
 						.map(GrantedAuthority::getAuthority)
 						.collect(Collectors.toSet());
