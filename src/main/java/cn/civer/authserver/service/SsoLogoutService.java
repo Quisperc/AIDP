@@ -1,5 +1,7 @@
 package cn.civer.authserver.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 @Service
 public class SsoLogoutService {
+
+	private static final Logger log = LoggerFactory.getLogger(SsoLogoutService.class);
 
 	private final JdbcTemplate jdbcTemplate;
 	private final JWKSource<SecurityContext> jwkSource;
@@ -40,13 +44,13 @@ public class SsoLogoutService {
 		}
 		String sqlDeleteConsent = "DELETE FROM oauth2_authorization_consent WHERE principal_name = ?";
 		jdbcTemplate.update(sqlDeleteConsent, principalName);
-		System.out.println("SSO Logout: Cleared all consents for user '" + principalName + "'");
+		log.info("SSO Logout: Cleared all consents for user '{}'", principalName);
 
 		String resolvedIssuer = (issuer != null && !issuer.isBlank())
 				? issuer
 				: authorizationServerSettings.getIssuer();
 		if (resolvedIssuer == null) {
-			System.err.println("SSO Logout: No issuer configured, skip broadcast");
+			log.warn("SSO Logout: No issuer configured, skip broadcast");
 			return;
 		}
 		broadcastBackchannelLogout(principalName, resolvedIssuer);
@@ -145,12 +149,12 @@ public class SsoLogoutService {
 						String logoutToken = generateLogoutToken(jwtEncoder, principalName, clientId, issuer);
 						sendLogoutToken(logoutUrl, logoutToken);
 					} catch (Exception e) {
-						System.err.println("DEBUG: Error broadcasting logout to " + logoutUrl + ": " + e.getMessage());
+						log.error("Error broadcasting logout to {}: {}", logoutUrl, e.getMessage());
 					}
 				}
 			}
 		} catch (Exception e) {
-			System.err.println("Error during OIDC broadcast logout: " + e.getMessage());
+			log.error("Error during OIDC broadcast logout: {}", e.getMessage());
 		}
 	}
 
@@ -182,9 +186,9 @@ public class SsoLogoutService {
 				.POST(java.net.http.HttpRequest.BodyPublishers.ofString("logout_token=" + token))
 				.build();
 		client.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.discarding())
-				.thenAccept(res -> System.out.println("Logout token sent to " + url + " code=" + res.statusCode()))
+				.thenAccept(res -> log.info("Logout token sent to {} code={}", url, res.statusCode()))
 				.exceptionally(ex -> {
-					System.err.println("Failed to send token to " + url + ": " + ex.getMessage());
+					log.error("Failed to send token to {}: {}", url, ex.getMessage());
 					return null;
 				});
 	}
