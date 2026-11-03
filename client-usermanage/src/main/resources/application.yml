@@ -58,8 +58,12 @@ spring:
             issuer-uri: ${app.auth-server-url} # 【核心】引用下方定义的统一地址
 
 app:
-  # 认证中心地址（tidp），HTTP Service Client 调 SSO 接口 + issuer-uri 均用此值；管理端 tum 必须填 tidp，否则 backchannel logout 验签会失败
+  # 认证中心对外地址（issuer-uri / OIDC 发现 / 登录跳转），必须是公网可达的 https 地址
   auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
+  # 管理端转发调用认证中心 /api/** 时使用的地址。
+  # 生产建议指向容器内网（如 http://idp_auth_server:8080），避免绕公网 CDN 被剥离
+  # Authorization 头；不配置时回退到 auth-server-url。
+  auth-server-api-url: ${APP_AUTH_SERVER_API_URL:${app.auth-server-url}}
   base-url: ${APP_BASE_URL:http://127.0.0.1:8081}  # 管理端自身地址（tum）
   # ---- 跨域部署（前端托管在 EdgeOne Pages 独立域名）----
   # 允许的来源，逗号分隔。Allow-Credentials 下不能用通配，必须逐个列出。

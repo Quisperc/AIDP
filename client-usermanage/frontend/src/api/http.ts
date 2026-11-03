@@ -30,6 +30,21 @@ export class ApiError extends Error {
   }
 }
 
+let reloginning = false
+
+/**
+ * 业务接口返回 401（服务端 token 失效/重启后丢失）时自动重新走一次 SSO，
+ * 用户无需手动退出再登录。加标志位防止多个并发请求重复跳转。
+ * /api/me 的 401 是「本来就没登录」，交给路由守卫显示登录页，不在这里处理。
+ */
+function triggerRelogin(): void {
+  if (reloginning) return
+  reloginning = true
+  const target = window.location.href
+  window.location.href =
+    `${API_BASE}/oauth2/authorization/oidc-client?redirect=${encodeURIComponent(target)}`
+}
+
 /**
  * 后端接口基址。
  *
@@ -92,6 +107,10 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
       }
     } catch {
       // 非 JSON 响应（例如网关返回的 HTML 错误页），沿用默认文案
+    }
+    if (res.status === 401 && !path.startsWith('/api/me')) {
+      triggerRelogin()
+      throw new ApiError(401, '登录状态已失效，正在重新登录…')
     }
     throw new ApiError(res.status, message)
   }
