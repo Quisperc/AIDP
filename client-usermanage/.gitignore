@@ -42,5 +42,5 @@ target/
 ### Logs ###
 *.log
 
-### 前端构建产物（EdgeOne 部署用） ###
-dist-edgeone/
+### 前端构建产物（EdgeOne Pages 部署用，不进 jar） ###
+dist/

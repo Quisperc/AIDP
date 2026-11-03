@@ -3,10 +3,10 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  // 构建产物直接进 Spring Boot 的 static 目录，由后端一并托管，
-  // 部署时只有一个 jar，不需要额外起 Node 服务
+  // 前后端完全分离：产物只进 frontend/dist，由 EdgeOne Pages 托管，
+  // 不再打进 jar。后端只提供 REST API。
   build: {
-    outDir: '../src/main/resources/static',
+    outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
     sourcemap: false,

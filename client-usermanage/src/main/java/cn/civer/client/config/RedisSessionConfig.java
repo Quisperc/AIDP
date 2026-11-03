@@ -4,7 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
+import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
@@ -39,6 +43,19 @@ public class RedisSessionConfig {
 
 	@Value("${app.cookie.secure:false}")
 	private boolean secure;
+
+	/**
+	 * 只共享 HTTP Session 还不够：Spring Security 的并发会话控制读的是
+	 * SessionRegistry，内存实现会让 maximumSessions(1) 只在单实例内生效。
+	 * 用 SpringSessionBackedSessionRegistry 按 principal 去 Redis 查所有会话。
+	 *
+	 * 注意它不支持 getAllPrincipals()，所以登出广播不通过它实现
+	 * （见 SsoLogoutController 直接用 FindByIndexNameSessionRepository）。
+	 */
+	@Bean
+	public SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<? extends Session> repository) {
+		return new SpringSessionBackedSessionRegistry<>(repository);
+	}
 
 	/**
 	 * 启用 Spring Session 后，会话 Cookie 由 CookieSerializer 生成，

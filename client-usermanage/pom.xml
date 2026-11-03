@@ -166,9 +166,9 @@
 
 
     <!--
-      前端构建：默认不激活。
-      SPA 产物已提交在 src/main/resources/static/ 下，普通后端构建不需要 Node 环境。
-      改了前端源码后用 `mvn -Pfrontend package` 一并重新构建：
+      前端构建：默认不激活。前后端已完全分离，产物输出到 frontend/dist
+      并单独部署到 EdgeOne Pages，不再进入后端 jar。
+      改了前端源码后用 `mvn -Pfrontend package` 重新构建前端：
         mvn -Pfrontend package
       ignore-scripts 参数是必须的：pnpm 10+ 默认拦截 esbuild 的安装脚本并报错退出，
       而 esbuild 的二进制实际来自 @esbuild/win32-x64 等平台可选依赖，跳过脚本不影响构建。
