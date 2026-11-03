@@ -1,5 +1,6 @@
 package cn.civer.authserver.controller;
 
+import cn.civer.authserver.dto.UserResponse;
 import cn.civer.authserver.entity.User;
 import cn.civer.authserver.repository.UserRepository;
 import org.springframework.data.domain.Sort;
@@ -13,6 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 用户管理接口。
+ *
+ * 响应一律走 {@link UserResponse}（不含 password 字段）；请求体仍用 User 实体，
+ * 其 password 标注为 WRITE_ONLY，可接收但不会回吐。
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserManagementController {
@@ -27,33 +34,44 @@ public class UserManagementController {
 
 	@GetMapping
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
-	public List<User> getUsers() {
-		return userRepository.findAll(Sort.by("id"));
+	public List<UserResponse> getUsers() {
+		return userRepository.findAll(Sort.by("id")).stream()
+				.map(UserResponse::from)
+				.toList();
 	}
 
 	@PostMapping
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
-	public ResponseEntity<User> createUser(@RequestBody User user) {
+	public ResponseEntity<UserResponse> createUser(@RequestBody User user) {
+		if (user.getUsername() == null || user.getUsername().isBlank()) {
+			return ResponseEntity.badRequest().build();
+		}
+		if (user.getPassword() == null || user.getPassword().isEmpty()) {
+			return ResponseEntity.badRequest().build();
+		}
+		// 用户名唯一，重复提交应返回 409 而不是让数据库抛约束异常（会变成 500）
+		if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+			return ResponseEntity.status(409).build();
+		}
 		user.setPassword(passwordEncoder.encode(user.getPassword()));
 		// Default role if not provided, though typically managed via UI
 		if (user.getRole() == null || user.getRole().isEmpty()) {
 			user.setRole("ROLE_USER");
 		}
 		user.setEnabled(true); // Default enabled
-		User saved = userRepository.save(user);
-		return ResponseEntity.ok(saved);
+		return ResponseEntity.ok(UserResponse.from(userRepository.save(user)));
 	}
 
 	@PutMapping("/{id}")
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
-	public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+	public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
 		return userRepository.findById(id).map(user -> {
 			user.setRole(updatedUser.getRole());
 			user.setEnabled(updatedUser.isEnabled());
 			if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
 				user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
 			}
-			return ResponseEntity.ok(userRepository.save(user));
+			return ResponseEntity.ok(UserResponse.from(userRepository.save(user)));
 		}).orElse(ResponseEntity.notFound().build());
 	}
 
@@ -69,7 +87,7 @@ public class UserManagementController {
 
 	@PutMapping("/me")
 	@PreAuthorize("isAuthenticated()")
-	public ResponseEntity<User> updateCurrentUser(
+	public ResponseEntity<UserResponse> updateCurrentUser(
 			@AuthenticationPrincipal Jwt principal,
 			@RequestBody User updatedUser) {
 		String username = principal.getSubject();
@@ -79,7 +97,7 @@ public class UserManagementController {
 				// 若修改用户名，检查是否已被其他用户占用
 				Optional<User> existing = userRepository.findByUsername(newUsername);
 				if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
-					return ResponseEntity.status(409).body((User) null);
+					return ResponseEntity.status(409).body((UserResponse) null);
 				}
 				user.setUsername(newUsername);
 			}
@@ -88,7 +106,7 @@ public class UserManagementController {
 			}
 			User saved = userRepository.save(user);
 			// 不在此处广播：由客户端重定向到 /logout 后，由 SsoLogoutSuccessHandler 统一做一次全局退出（清 consent + 广播），避免重复
-			return ResponseEntity.ok(saved);
+			return ResponseEntity.ok(UserResponse.from(saved));
 		}).orElse(ResponseEntity.notFound().build());
 	}
 }

@@ -8,7 +8,9 @@ server:
 
 logging:
   level:
-    org.springframework.security: DEBUG # 开启安全调试日志，方便排查登录跳转问题 (生产环境建议改为 INFO)
+    # 默认 INFO。DEBUG 会把令牌、请求头等敏感信息写进日志，只在排查时临时开启：
+    # 启动参数加 --logging.level.org.springframework.security=DEBUG
+    org.springframework.security: INFO
 
 spring:
   config:
@@ -22,7 +24,7 @@ spring:
           oidc-client:        # 【注册ID】内部标识，可自定义，如下面的 url 模板中会用到
             provider: auth-server       # 引用下方定义的 provider 名称
             client-id: client-usermanage       # 【关键】Client ID，必须与 Auth Server 数据库/配置中一致
-            client-secret: secret       # 【关键】Client Secret，必须与 Auth Server 中的一致
+            client-secret: ${CLIENT_SECRET:secret}       # 【关键】必须与认证中心 INITIAL_CLIENT_SECRET 一致，生产用环境变量覆盖
             authorization-grant-type: authorization_code # 授权码模式：最标准的 OIDC 登录流程
             redirect-uri: "${app.base-url}/login/oauth2/code/{registrationId}" # 回调地址，使用变量
             scope:                      # 申请的权限范围
