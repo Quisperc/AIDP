@@ -11,7 +11,7 @@
 			<div>
 				<h1 class="page-title">用户</h1>
 				<p class="page-desc">
-					共 <span th:text="${#lists.size(users)}">0</span> 个账号。
+					共 <span th:text="${pager.totalElements}">0</span> 个账号。
 					停用不清除授权记录，可再次编辑恢复。
 				</p>
 			</div>
@@ -63,6 +63,8 @@
 				</table>
 			</div>
 		</div>
+
+		<nav th:replace="~{fragments/admin :: pager(${pager}, '/admin/users')}"></nav>
 	</main>
 
 	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>

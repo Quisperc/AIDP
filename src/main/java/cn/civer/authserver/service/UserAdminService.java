@@ -1,11 +1,13 @@
 package cn.civer.authserver.service;
 
+import cn.civer.authserver.dto.PageResult;
 import cn.civer.authserver.dto.UserResponse;
 import cn.civer.authserver.entity.User;
 import cn.civer.authserver.exception.BusinessException;
 import cn.civer.authserver.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,10 +38,17 @@ public class UserAdminService {
 		this.passwordEncoder = passwordEncoder;
 	}
 
-	public List<UserResponse> listUsers() {
-		return userRepository.findAll(Sort.by("id")).stream()
+	public PageResult<UserResponse> listUsers(int page, int size) {
+		long total = userRepository.count();
+		int totalPages = size <= 0 ? 0 : (int) ((total + size - 1) / size);
+		// 页码越界（例如刚删完最后一页的数据）时回到最后一页，而不是给一张空表
+		int safePage = total == 0 ? 0 : Math.min(Math.max(page, 0), totalPages - 1);
+		List<UserResponse> items = userRepository
+				.findAll(PageRequest.of(safePage, size, Sort.by("id")))
+				.stream()
 				.map(UserResponse::from)
 				.toList();
+		return PageResult.of(items, safePage, size, total);
 	}
 
 	public UserResponse get(Long id) {

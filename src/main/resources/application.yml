@@ -64,7 +64,9 @@ spring:
       namespace: aidp:auth
   cache:
     type: ${CACHE_TYPE:simple}
-    cache-names: ssoAllowedHosts
+    # simple 类型只创建这里列出的缓存，漏写等于该缓存不存在（代码里会退化为「跳过」）：
+    # ssoAllowedHosts = 登出回跳 host 白名单；loginAttempts = 登录失败计数
+    cache-names: ssoAllowedHosts,loginAttempts
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -124,6 +126,11 @@ app:
     # 各子系统接收 logout_token 的固定路径。改这里必须同步改所有子系统，
     # 且该端点需与注册的回调同域同端口（推送地址取 redirect_uri 的 origin）
     client-logout-path: ${SSO_CLIENT_LOGOUT_PATH:/api/sso-logout}
+
+  login-guard:
+    # 同一用户名连续失败达到阈值后临时锁定；管理员账号豁免（被锁后没有自助解锁入口）
+    max-attempts: ${LOGIN_MAX_ATTEMPTS:10}
+    window: ${LOGIN_GUARD_WINDOW:15m}
 
   bootstrap:
     # 空库时是否写入演示账号 admin / user。

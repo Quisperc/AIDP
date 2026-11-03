@@ -30,6 +30,14 @@
 				<span>用户名或密码不正确，请重新输入。</span>
 			</div>
 
+			<!-- 连续失败达到阈值：服务端在认证前就拦下，这里只负责说明原因 -->
+			<div th:if="${param.blocked}" class="alert alert-error" role="alert">
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+				</svg>
+				<span>尝试次数过多，该账号已被临时锁定。请稍后重试，或联系管理员。</span>
+			</div>
+
 			<div th:if="${param.logout}" class="alert alert-success" role="status">
 				<svg viewBox="0 0 24 24" aria-hidden="true">
 					<path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />

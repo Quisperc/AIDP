@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('审计')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('audit')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">操作审计</h1>
+				<p class="page-desc">
+					共 <span th:text="${pager.totalElements}">0</span> 条记录。
+					只追加不修改，时间按服务器时区显示。
+				</p>
+			</div>
+		</div>
+
+		<div class="card">
+			<div th:if="${#lists.isEmpty(logs)}" class="empty">还没有审计记录。</div>
+			<div class="table-wrap" th:unless="${#lists.isEmpty(logs)}">
+				<table class="table">
+					<thead>
+						<tr>
+							<th class="cell-narrow">时间</th>
+							<th>操作者</th>
+							<th>动作</th>
+							<th>对象</th>
+							<th>详情</th>
+							<th class="cell-narrow">IP</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="log : ${logs}">
+							<td class="cell-mono" th:text="${log.time}">2026-11-04 00:00:00</td>
+							<td class="cell-name" th:text="${log.actor}">admin</td>
+							<td>
+								<span class="badge badge-off" th:text="${log.actionLabel}">修改用户</span>
+							</td>
+							<td class="cell-mono" th:text="${log.target} ?: '—'">target</td>
+							<td class="cell-uri" th:text="${log.detail} ?: '—'">detail</td>
+							<td class="cell-mono" th:text="${log.ip} ?: '—'">127.0.0.1</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<nav th:replace="~{fragments/admin :: pager(${pager}, '/admin/audit')}"></nav>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

@@ -2,21 +2,25 @@ package cn.civer.authserver.config;
 
 import cn.civer.authserver.handler.LoginSuccessHandler;
 import cn.civer.authserver.handler.SsoLogoutSuccessHandler;
+import cn.civer.authserver.security.LoginRateLimitFilter;
+import cn.civer.authserver.service.LoginAttemptService;
+import cn.civer.authserver.service.SsoLogoutService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.authorization.oidc.web.authentication.OidcLogoutAuthenticationSuccessHandler;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * 唯一的安全过滤器链 + 口令编码器。
  *
  * 管理后台并入本应用后，这里只有一种身份来源：**表单登录建立的会话**。
- * 原先的「资源服务器 + JWT 转换器」是为管理端远程调用 /api/** 服务的，
- * 现在调用发生在进程内，已经不需要，一并移除。
  *
  * 路由分三类：
  * - 匿名可达：静态资源、登录/错误页、健康检查；
@@ -33,11 +37,17 @@ public class SecurityConfig {
 
 	private final SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
 	private final LoginSuccessHandler loginSuccessHandler;
+	private final LoginAttemptService loginAttemptService;
+	private final SsoLogoutService ssoLogoutService;
 
 	public SecurityConfig(SsoLogoutSuccessHandler ssoLogoutSuccessHandler,
-			LoginSuccessHandler loginSuccessHandler) {
+			LoginSuccessHandler loginSuccessHandler,
+			LoginAttemptService loginAttemptService,
+			SsoLogoutService ssoLogoutService) {
 		this.ssoLogoutSuccessHandler = ssoLogoutSuccessHandler;
 		this.loginSuccessHandler = loginSuccessHandler;
+		this.loginAttemptService = loginAttemptService;
+		this.ssoLogoutService = ssoLogoutService;
 	}
 
 	@Bean
@@ -58,12 +68,42 @@ public class SecurityConfig {
 						.logoutUrl("/logout")
 						.logoutSuccessHandler(ssoLogoutSuccessHandler)
 						.permitAll())
+				// 登录表单的限流闸门，必须排在认证过滤器之前
+				.addFilterBefore(new LoginRateLimitFilter(loginAttemptService),
+						UsernamePasswordAuthenticationFilter.class)
 				.oauth2AuthorizationServer(authorizationServer -> authorizationServer
-						.oidc(Customizer.withDefaults())
+						.oidc(oidc -> oidc
+								.providerConfigurationEndpoint(Customizer.withDefaults())
+								// 标准端点 /connect/logout（discovery 里的 end_session_endpoint）
+								// 也要触发全局退出：外部系统按 OIDC 规范调它，若只清本机会话，
+								// 用户从 A 系统退出后，其它子系统仍在线。
+								.logoutEndpoint(endpoint ->
+										endpoint.logoutResponseHandler(oidcLogoutSuccessHandler())))
 						.authorizationEndpoint(authorizationEndpoint ->
 								authorizationEndpoint.consentPage("/oauth2/consent")));
 
 		return http.build();
+	}
+
+	/**
+	 * OIDC RP-Initiated Logout 的成功处理器：先做全局退出（删同意/授权 + 广播），
+	 * 再交给 Spring Authorization Server 的默认实现完成会话失效与回跳校验。
+	 *
+	 * 复用默认实现而不是自己写重定向：post_logout_redirect_uri 的合法性校验、
+	 * id_token_hint 校验、以及 state 回传都在它里面，自己实现必然漏。
+	 */
+	private OidcLogoutAuthenticationSuccessHandler oidcLogoutSuccessHandler() {
+		OidcLogoutAuthenticationSuccessHandler handler = new OidcLogoutAuthenticationSuccessHandler();
+		handler.setLogoutHandler((request, response, authentication) -> {
+			if (authentication == null
+					|| !authentication.isAuthenticated()
+					|| authentication instanceof AnonymousAuthenticationToken) {
+				return;
+			}
+			ssoLogoutService.performGlobalLogout(authentication.getName(),
+					ssoLogoutService.getResolvedIssuer(request));
+		});
+		return handler;
 	}
 
 	/**

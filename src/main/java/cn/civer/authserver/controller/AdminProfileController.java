@@ -1,6 +1,7 @@
 package cn.civer.authserver.controller;
 
 import cn.civer.authserver.exception.BusinessException;
+import cn.civer.authserver.service.AuditService;
 import cn.civer.authserver.service.UserAdminService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,9 +25,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminProfileController {
 
 	private final UserAdminService userAdminService;
+	private final AuditService auditService;
 
-	public AdminProfileController(UserAdminService userAdminService) {
+	public AdminProfileController(UserAdminService userAdminService, AuditService auditService) {
 		this.userAdminService = userAdminService;
+		this.auditService = auditService;
 	}
 
 	@GetMapping
@@ -56,6 +59,8 @@ public class AdminProfileController {
 		}
 		try {
 			userAdminService.updateSelf(current, username, password);
+			auditService.record(AuditService.PROFILE_UPDATE, current,
+					"usernameChanged=" + wantsUsername + ", passwordChanged=" + wantsPassword);
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());
 			return "redirect:/admin/profile";

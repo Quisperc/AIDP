@@ -1,6 +1,7 @@
 package cn.civer.authserver.repository;
 
 import cn.civer.authserver.dto.ClientSummaryDto;
+import cn.civer.authserver.dto.PageResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -9,6 +10,8 @@ import org.springframework.util.StringUtils;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +46,20 @@ public class ClientQueryRepository {
 		this.objectMapper = objectMapper;
 	}
 
-	public List<ClientSummaryDto> findAllSummaries() {
-		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> new ClientSummaryDto(
+	public PageResult<ClientSummaryDto> findSummaries(int page, int size) {
+		long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oauth2_registered_client", Long.class);
+		int totalPages = size <= 0 ? 0 : (int) ((total + size - 1) / size);
+		// 越界页码回到最后一页：翻页链接是 GET，用户可能停留在已被删掉的页码上
+		int safePage = total == 0 ? 0 : Math.min(Math.max(page, 0), totalPages - 1);
+		List<ClientSummaryDto> items = jdbcTemplate.query(
+				LIST_SQL + " LIMIT ? OFFSET ?",
+				(rs, rowNum) -> mapRow(rs),
+				size, (long) safePage * size);
+		return PageResult.of(items, safePage, size, total);
+	}
+
+	private ClientSummaryDto mapRow(ResultSet rs) throws SQLException {
+		return new ClientSummaryDto(
 				rs.getString("id"),
 				rs.getString("client_id"),
 				rs.getString("client_name"),
@@ -53,7 +68,7 @@ public class ClientQueryRepository {
 				// 客户端的「+n」提示，这里统一成换行。
 				toLineSeparated(rs.getString("redirect_uris")),
 				rs.getString("post_logout_redirect_uris"),
-				requireProofKey(rs.getString("client_settings"))));
+				requireProofKey(rs.getString("client_settings")));
 	}
 
 	/**

@@ -2,6 +2,7 @@ package cn.civer.authserver.service;
 
 import cn.civer.authserver.dto.ClientDto;
 import cn.civer.authserver.dto.ClientSummaryDto;
+import cn.civer.authserver.dto.PageResult;
 import cn.civer.authserver.exception.BusinessException;
 import cn.civer.authserver.repository.ClientQueryRepository;
 import org.slf4j.Logger;
@@ -57,8 +58,8 @@ public class ClientService {
 		this.accessTokenTtl = accessTokenTtl;
 	}
 
-	public List<ClientSummaryDto> listClients() {
-		return clientQueryRepository.findAllSummaries();
+	public PageResult<ClientSummaryDto> listClients(int page, int size) {
+		return clientQueryRepository.findSummaries(page, size);
 	}
 
 	public ClientSummaryDto getClient(String clientId) {

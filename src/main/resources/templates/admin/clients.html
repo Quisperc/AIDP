@@ -11,7 +11,7 @@
 			<div>
 				<h1 class="page-title">客户端</h1>
 				<p class="page-desc">
-					共 <span th:text="${#lists.size(clients)}">0</span> 个接入应用。
+					共 <span th:text="${pager.totalElements}">0</span> 个接入应用。
 					删除会连同该客户端的授权与同意记录一起清理。
 				</p>
 			</div>
@@ -60,6 +60,8 @@
 				</table>
 			</div>
 		</div>
+
+		<nav th:replace="~{fragments/admin :: pager(${pager}, '/admin/clients')}"></nav>
 	</main>
 
 	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>

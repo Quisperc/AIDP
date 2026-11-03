@@ -14,7 +14,7 @@ Thymeleaf 页面，不引入前端工程与跨域链路。适合「一个主域�
 |---|---|---|
 | OIDC 提供方 | `src/main/java/.../config` | 授权码 + PKCE、Discovery、JWKS、UserInfo |
 | 登录 / 同意 / 错误页 | `templates/` | Thymeleaf 服务端渲染（OAuth2 要求用户代理与授权服务器同源交互） |
-| 管理台 | `templates/admin/` | 用户、客户端、账号三张页面，同一个会话与角色体系 |
+| 管理台 | `templates/admin/` | 用户、客户端、审计、账号四张页面，同一个会话与角色体系 |
 | 资源 | `static/css/` | `tokens.css`（设计变量）+ `hig.css`（认证页）+ `admin.css`（管理台） |
 
 ```
@@ -64,7 +64,7 @@ mvn spring-boot:run
 测试：
 
 ```bash
-mvn test      # 27 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、客户端字段归一化、模板渲染
+mvn test      # 32 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、登录限流、分页、审计、模板渲染
 ```
 
 演示账号由 `app.bootstrap.seed-demo-users` 控制，**默认关闭**（漏配环境变量时宁可没人能登录，
@@ -79,8 +79,8 @@ mvn test      # 27 个用例：越权、开放重定向、密码不外泄、密�
 │   ├── config/       安全链（SecurityConfig）、OIDC 存储、令牌装配、Flyway、缓存、启动初始化
 │   ├── security/     签名密钥的持久化读写（SigningKeyStore）
 │   ├── controller/   OIDC 端点 + 管理台（AdminUser / AdminClient / AdminProfile）+ 同意页
-│   ├── service/      用户、客户端、全局登出与 Back-Channel 推送
-│   ├── repository/   用户 JPA 仓储 + 客户端列表投影
+│   ├── service/      用户、客户端、全局登出、Back-Channel 推送、登录限流、操作审计
+│   ├── repository/   用户/审计仓储 + 客户端列表投影
 │   └── dto/ entity/ exception/ handler/
 ├── src/main/resources/
 │   ├── db/migration/ Flyway 迁移（V1：OAuth2 三表 + 签名密钥 + users + 索引）

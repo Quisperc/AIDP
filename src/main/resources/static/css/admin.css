@@ -469,6 +469,21 @@ a:hover {
   color: var(--label-tertiary);
 }
 
+/* 分页条：与卡片同宽，靠右对齐；只有一页时片段本身不渲染 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+.pager-info {
+  font-size: var(--fs-caption1);
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 720px) {
   .topbar {
     gap: var(--sp-3);

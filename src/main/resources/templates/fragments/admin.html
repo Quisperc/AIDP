@@ -24,6 +24,8 @@
 				th:classappend="${active == 'users'} ? 'is-active'">用户</a>
 			<a class="nav-link" th:href="@{/admin/clients}"
 				th:classappend="${active == 'clients'} ? 'is-active'">客户端</a>
+			<a class="nav-link" th:href="@{/admin/audit}"
+				th:classappend="${active == 'audit'} ? 'is-active'">审计</a>
 			<a class="nav-link" th:href="@{/admin/profile}"
 				th:classappend="${active == 'profile'} ? 'is-active'">账号</a>
 		</nav>
@@ -41,6 +43,18 @@
 		<div th:if="${ok}" class="alert alert-ok" role="status" th:text="${ok}">已保存</div>
 		<div th:if="${error}" class="alert alert-error" role="alert" th:text="${error}">出错了</div>
 	</div>
+
+	<!-- 分页条。basePath 由页面给出（/admin/users 等），页码统一走 ?page=N（0 基） -->
+	<nav class="pager" th:fragment="pager(pager, basePath)" th:if="${pager.totalPages > 1}">
+		<a class="btn" th:if="${pager.hasPrevious}"
+			th:href="@{${basePath}(page=${pager.page - 1})}">上一页</a>
+		<span class="pager-info">
+			第 <span th:text="${pager.page + 1}">1</span> / <span th:text="${pager.totalPages}">1</span> 页
+			· 共 <span th:text="${pager.totalElements}">0</span> 条
+		</span>
+		<a class="btn" th:if="${pager.hasNext}"
+			th:href="@{${basePath}(page=${pager.page + 1})}">下一页</a>
+	</nav>
 
 </body>
 

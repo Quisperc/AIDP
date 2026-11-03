@@ -1,6 +1,9 @@
 package cn.civer.authserver.controller;
 
+import cn.civer.authserver.dto.PageResult;
+import cn.civer.authserver.dto.UserResponse;
 import cn.civer.authserver.exception.BusinessException;
+import cn.civer.authserver.service.AuditService;
 import cn.civer.authserver.service.UserAdminService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -20,20 +23,26 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *
  * 权限在 SecurityConfig 里按 /admin/** 统一要求 ROLE_ADMIN，
  * 方法上不再逐个加 @PreAuthorize（那是 REST 时代为 URL 粒度不足做的补偿）。
+ *
+ * 每个写操作都写一条审计（AuditService）：留痕由服务端强制，不依赖前端埋点。
  */
 @Controller
 @RequestMapping("/admin/users")
 public class AdminUserController {
 
 	private final UserAdminService userAdminService;
+	private final AuditService auditService;
 
-	public AdminUserController(UserAdminService userAdminService) {
+	public AdminUserController(UserAdminService userAdminService, AuditService auditService) {
 		this.userAdminService = userAdminService;
+		this.auditService = auditService;
 	}
 
 	@GetMapping
-	public String list(Model model) {
-		model.addAttribute("users", userAdminService.listUsers());
+	public String list(@RequestParam(defaultValue = "0") int page, Model model) {
+		PageResult<UserResponse> pager = userAdminService.listUsers(page, PageResult.DEFAULT_SIZE);
+		model.addAttribute("pager", pager);
+		model.addAttribute("users", pager.items());
 		model.addAttribute("active", "users");
 		return "admin/users";
 	}
@@ -52,6 +61,7 @@ public class AdminUserController {
 			RedirectAttributes ra) {
 		try {
 			userAdminService.create(username, password, role);
+			auditService.record(AuditService.USER_CREATE, username.trim(), "role=" + role);
 			ra.addFlashAttribute("ok", "已创建用户「" + username.trim() + "」");
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());
@@ -82,6 +92,8 @@ public class AdminUserController {
 			RedirectAttributes ra) {
 		try {
 			userAdminService.update(id, role, enabled, password);
+			auditService.record(AuditService.USER_UPDATE, "id=" + id,
+					"role=" + role + ", enabled=" + enabled + ", passwordReset=" + (password != null && !password.isBlank()));
 			ra.addFlashAttribute("ok", "已保存");
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());
@@ -93,6 +105,7 @@ public class AdminUserController {
 	public String disable(@PathVariable Long id, RedirectAttributes ra) {
 		try {
 			userAdminService.disable(id);
+			auditService.record(AuditService.USER_DISABLE, "id=" + id, "reason=admin-console");
 			ra.addFlashAttribute("ok", "已停用该用户（保留授权记录，可再次启用）");
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());
