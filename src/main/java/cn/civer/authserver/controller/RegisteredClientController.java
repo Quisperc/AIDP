@@ -1,7 +1,9 @@
 package cn.civer.authserver.controller;
 
+import cn.civer.authserver.service.SsoLogoutService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,6 +15,7 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -50,13 +53,19 @@ public class RegisteredClientController {
 	private final RegisteredClientRepository registeredClientRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JdbcTemplate jdbcTemplate;
+	private final SsoLogoutService ssoLogoutService;
+
+	@Value("${app.auth.access-token-time-to-live:30m}")
+	private Duration accessTokenTtl;
 
 	public RegisteredClientController(RegisteredClientRepository registeredClientRepository,
 			PasswordEncoder passwordEncoder,
-			JdbcTemplate jdbcTemplate) {
+			JdbcTemplate jdbcTemplate,
+			SsoLogoutService ssoLogoutService) {
 		this.registeredClientRepository = registeredClientRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jdbcTemplate = jdbcTemplate;
+		this.ssoLogoutService = ssoLogoutService;
 	}
 
 	@GetMapping
@@ -99,6 +108,7 @@ public class RegisteredClientController {
 	}
 
 	@PostMapping
+	@Transactional
 	public ResponseEntity<String> registerClient(@RequestBody ClientDto dto) {
 		log.info("[clients] register clientId={}", dto.clientId);
 		if (registeredClientRepository.findByClientId(dto.clientId) != null) {
@@ -128,15 +138,18 @@ public class RegisteredClientController {
 						.requireAuthorizationConsent(true)
 						.requireProofKey(dto.requirePkce != null ? dto.requirePkce : true)
 						.build())
-				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
+				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(accessTokenTtl).build())
 				.build();
 
 		registeredClientRepository.save(registeredClient);
+		// redirect_uris 变了，登出跳转的 host 白名单缓存需立即失效
+		ssoLogoutService.invalidateHostCache();
 		log.info("[clients] registered: clientId={}", dto.clientId);
 		return ResponseEntity.ok("Client registered successfully: " + dto.clientId);
 	}
 
 	@PutMapping("/{clientId}")
+	@Transactional
 	public ResponseEntity<String> updateClient(@PathVariable String clientId, @RequestBody ClientDto dto) {
 		log.info("[clients] update clientId={}", clientId);
 		RegisteredClient existing = registeredClientRepository.findByClientId(clientId);
@@ -177,14 +190,19 @@ public class RegisteredClientController {
 						.requireAuthorizationConsent(true)
 						.requireProofKey(pkce)
 						.build())
-				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(30)).build())
+				.tokenSettings(TokenSettings.builder().accessTokenTimeToLive(accessTokenTtl).build())
 				.build();
 		registeredClientRepository.save(updated);
+		ssoLogoutService.invalidateHostCache();
 		log.info("[clients] updated: clientId={}", clientId);
 		return ResponseEntity.ok("Client updated successfully: " + clientId);
 	}
 
+	/**
+	 * 三张表的清理必须同事务：原先任意一句失败都会留下孤儿授权记录。
+	 */
 	@DeleteMapping("/{clientId}")
+	@Transactional
 	public ResponseEntity<String> deleteClient(@PathVariable String clientId) {
 		log.info("[clients] delete clientId={}", clientId);
 		RegisteredClient client = registeredClientRepository.findByClientId(clientId);
@@ -196,6 +214,7 @@ public class RegisteredClientController {
 		jdbcTemplate.update("DELETE FROM oauth2_authorization WHERE registered_client_id = ?", id);
 		jdbcTemplate.update("DELETE FROM oauth2_authorization_consent WHERE registered_client_id = ?", id);
 		jdbcTemplate.update("DELETE FROM oauth2_registered_client WHERE id = ?", id);
+		ssoLogoutService.invalidateHostCache();
 		log.info("[clients] deleted: clientId={}", clientId);
 		return ResponseEntity.ok("Client deleted: " + clientId);
 	}

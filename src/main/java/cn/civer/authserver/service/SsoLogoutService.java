@@ -1,13 +1,39 @@
 package cn.civer.authserver.service;
 
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
+import jakarta.annotation.PreDestroy;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.stereotype.Service;
 
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.proc.SecurityContext;
-
-import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SSO 全局退出：清除该用户的授权同意并向所有客户端发送 OIDC Back-Channel Logout。
@@ -16,16 +42,55 @@ import jakarta.servlet.http.HttpServletRequest;
 @Service
 public class SsoLogoutService {
 
+	private static final Logger log = LoggerFactory.getLogger(SsoLogoutService.class);
+
+	/** 已注册客户端 host 白名单的缓存时长：登出是高频操作，避免每次全表扫描 */
+	private static final long HOST_CACHE_TTL_MS = Duration.ofMinutes(5).toMillis();
+
 	private final JdbcTemplate jdbcTemplate;
-	private final JWKSource<SecurityContext> jwkSource;
 	private final AuthorizationServerSettings authorizationServerSettings;
+	private final JwtEncoder jwtEncoder;
+
+	/** 广播用 HTTP 客户端：复用连接与线程池，避免每次登出新建且无超时地挂起 */
+	private final HttpClient httpClient;
+	private final ExecutorService broadcastExecutor;
+
+	/** 客户端 logout 端点路径，各子系统需暴露该端点接收 logout_token */
+	private final String clientLogoutPath;
+
+	private volatile Set<String> cachedAllowedHosts;
+	private volatile long hostsLoadedAt;
 
 	public SsoLogoutService(JdbcTemplate jdbcTemplate,
 			JWKSource<SecurityContext> jwkSource,
-			AuthorizationServerSettings authorizationServerSettings) {
+			AuthorizationServerSettings authorizationServerSettings,
+			@Value("${app.sso.client-logout-path:/api/sso-logout}") String clientLogoutPath) {
 		this.jdbcTemplate = jdbcTemplate;
-		this.jwkSource = jwkSource;
 		this.authorizationServerSettings = authorizationServerSettings;
+		this.jwtEncoder = new NimbusJwtEncoder(jwkSource);
+		this.clientLogoutPath = clientLogoutPath.startsWith("/") ? clientLogoutPath : "/" + clientLogoutPath;
+		this.broadcastExecutor = Executors.newFixedThreadPool(4, runnable -> {
+			Thread t = new Thread(runnable, "sso-logout-broadcast");
+			t.setDaemon(true);
+			return t;
+		});
+		this.httpClient = HttpClient.newBuilder()
+				.connectTimeout(Duration.ofSeconds(3))
+				.executor(broadcastExecutor)
+				.build();
+	}
+
+	@PreDestroy
+	void shutdown() {
+		broadcastExecutor.shutdown();
+		try {
+			if (!broadcastExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+				broadcastExecutor.shutdownNow();
+			}
+		} catch (InterruptedException e) {
+			broadcastExecutor.shutdownNow();
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	/**
@@ -40,13 +105,13 @@ public class SsoLogoutService {
 		}
 		String sqlDeleteConsent = "DELETE FROM oauth2_authorization_consent WHERE principal_name = ?";
 		jdbcTemplate.update(sqlDeleteConsent, principalName);
-		System.out.println("SSO Logout: Cleared all consents for user '" + principalName + "'");
+		log.debug("[sso-logout] cleared consents for user={}", principalName);
 
 		String resolvedIssuer = (issuer != null && !issuer.isBlank())
 				? issuer
 				: authorizationServerSettings.getIssuer();
 		if (resolvedIssuer == null) {
-			System.err.println("SSO Logout: No issuer configured, skip broadcast");
+			log.warn("[sso-logout] no issuer configured, skip broadcast for user={}", principalName);
 			return;
 		}
 		broadcastBackchannelLogout(principalName, resolvedIssuer);
@@ -64,31 +129,25 @@ public class SsoLogoutService {
 	 */
 	public boolean isAllowedLogoutRedirect(String redirectUri) {
 		try {
-			java.net.URI uri = new java.net.URI(redirectUri.trim());
+			URI uri = new URI(redirectUri.trim());
 			String scheme = uri.getScheme();
-			if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme)))
+			if (scheme == null || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))) {
 				return false;
-			String host = uri.getHost();
-			if (host == null || host.isBlank()) return false;
-			String sql = "SELECT redirect_uris FROM oauth2_registered_client";
-			java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
-			java.util.Set<String> allowedHosts = new java.util.HashSet<>();
-			for (java.util.Map<String, Object> row : rows) {
-				Object val = row.get("redirect_uris");
-				String blobs = val != null ? val.toString() : null;
-				if (blobs == null) continue;
-				for (String one : blobs.split(",")) {
-						if (one == null || one.isBlank()) continue;
-						try {
-							java.net.URI u = new java.net.URI(one.trim());
-							if (u.getHost() != null) allowedHosts.add(u.getHost().toLowerCase());
-						} catch (Exception ignored) { }
-					}
 			}
-			return allowedHosts.contains(host.toLowerCase());
+			String host = uri.getHost();
+			if (host == null || host.isBlank()) {
+				return false;
+			}
+			return allowedHosts().contains(host.toLowerCase());
 		} catch (Exception e) {
 			return false;
 		}
+	}
+
+	/** 客户端注册信息变更后调用，让 host 白名单缓存立即失效 */
+	public void invalidateHostCache() {
+		this.cachedAllowedHosts = null;
+		this.hostsLoadedAt = 0;
 	}
 
 	/**
@@ -111,81 +170,111 @@ public class SsoLogoutService {
 	}
 
 	private void broadcastBackchannelLogout(String principalName, String issuer) {
+		List<Map<String, Object>> clientRows;
 		try {
-			org.springframework.security.oauth2.jwt.NimbusJwtEncoder jwtEncoder =
-					new org.springframework.security.oauth2.jwt.NimbusJwtEncoder(jwkSource);
+			clientRows = jdbcTemplate.queryForList("SELECT client_id, redirect_uris FROM oauth2_registered_client");
+		} catch (Exception e) {
+			log.error("[sso-logout] failed to load registered clients, skip broadcast", e);
+			return;
+		}
 
-			String sqlSelectClients = "SELECT client_id, redirect_uris FROM oauth2_registered_client";
-			java.util.List<java.util.Map<String, Object>> clientRows = jdbcTemplate.queryForList(sqlSelectClients);
-
-			java.util.Set<String> processedClientUrls = new java.util.HashSet<>();
-
-			for (java.util.Map<String, Object> row : clientRows) {
-				String clientId = (String) row.get("client_id");
-				String blobs = (String) row.get("redirect_uris");
-				if (blobs == null) continue;
-
-				String[] uris = blobs.split(",");
-				java.util.Set<String> thisClientUrls = new java.util.HashSet<>();
-				for (String uri : uris) {
-					if (uri.isBlank()) continue;
-					try {
-						java.net.URI u = new java.net.URI(uri.trim());
-						String logoutUrl = u.getScheme() + "://" + u.getHost()
-								+ (u.getPort() != -1 ? ":" + u.getPort() : "") + "/api/sso-logout";
-						thisClientUrls.add(logoutUrl);
-					} catch (Exception ignored) { }
+		Set<String> processed = new HashSet<>();
+		for (Map<String, Object> row : clientRows) {
+			String clientId = (String) row.get("client_id");
+			String blobs = (String) row.get("redirect_uris");
+			if (blobs == null) {
+				continue;
+			}
+			for (String uri : blobs.split(",")) {
+				if (uri.isBlank()) {
+					continue;
 				}
-
-				for (String logoutUrl : thisClientUrls) {
+				try {
+					URI u = new URI(uri.trim());
+					String logoutUrl = u.getScheme() + "://" + u.getHost()
+							+ (u.getPort() != -1 ? ":" + u.getPort() : "") + clientLogoutPath;
 					String key = clientId + "|" + logoutUrl;
-					if (processedClientUrls.contains(key)) continue;
-					processedClientUrls.add(key);
+					if (!processed.add(key)) {
+						continue;
+					}
 					try {
-						String logoutToken = generateLogoutToken(jwtEncoder, principalName, clientId, issuer);
+						String logoutToken = generateLogoutToken(principalName, clientId, issuer);
 						sendLogoutToken(logoutUrl, logoutToken);
 					} catch (Exception e) {
-						System.err.println("DEBUG: Error broadcasting logout to " + logoutUrl + ": " + e.getMessage());
+						log.warn("[sso-logout] broadcast failed: url={}, reason={}", logoutUrl, e.getMessage());
+					}
+				} catch (Exception ignored) {
+					// redirect_uri 非法，跳过该条
+				}
+			}
+		}
+	}
+
+	private String generateLogoutToken(String principalName, String audience, String issuer) {
+		JwsHeader jwsHeader = JwsHeader.with(SignatureAlgorithm.RS256).build();
+		JwtClaimsSet claims = JwtClaimsSet.builder()
+				.issuer(issuer)
+				.subject(principalName)
+				.audience(Collections.singletonList(audience))
+				.issuedAt(Instant.now())
+				.id(UUID.randomUUID().toString())
+				.claim("events",
+						Collections.singletonMap("http://schemas.openid.net/event/backchannel-logout",
+								new HashMap<>()))
+				.claim("sid", principalName)
+				.build();
+		return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+	}
+
+	private void sendLogoutToken(String url, String token) {
+		HttpRequest req = HttpRequest.newBuilder()
+				.uri(URI.create(url))
+				.timeout(Duration.ofSeconds(5))
+				.header("Content-Type", "application/x-www-form-urlencoded")
+				.POST(HttpRequest.BodyPublishers.ofString("logout_token=" + token))
+				.build();
+		httpClient.sendAsync(req, HttpResponse.BodyHandlers.discarding())
+				.thenAccept(res -> log.debug("[sso-logout] token delivered: url={}, status={}", url, res.statusCode()))
+				.exceptionally(ex -> {
+					log.warn("[sso-logout] token delivery failed: url={}, reason={}", url, ex.getMessage());
+					return null;
+				});
+	}
+
+	/** 带 TTL 的 host 白名单：登出是高频操作，原先每次调用都要全表扫描并重新解析 */
+	private Set<String> allowedHosts() {
+		Set<String> cached = this.cachedAllowedHosts;
+		long now = System.currentTimeMillis();
+		if (cached != null && (now - hostsLoadedAt) < HOST_CACHE_TTL_MS) {
+			return cached;
+		}
+		Set<String> hosts = new HashSet<>();
+		try {
+			for (Map<String, Object> row : jdbcTemplate.queryForList("SELECT redirect_uris FROM oauth2_registered_client")) {
+				Object val = row.get("redirect_uris");
+				if (val == null) {
+					continue;
+				}
+				for (String one : val.toString().split(",")) {
+					if (one.isBlank()) {
+						continue;
+					}
+					try {
+						URI u = new URI(one.trim());
+						if (u.getHost() != null) {
+							hosts.add(u.getHost().toLowerCase());
+						}
+					} catch (Exception ignored) {
+						// 忽略非法 URI
 					}
 				}
 			}
 		} catch (Exception e) {
-			System.err.println("Error during OIDC broadcast logout: " + e.getMessage());
+			log.error("[sso-logout] failed to refresh allowed hosts cache", e);
+			return cached != null ? cached : Set.of();
 		}
-	}
-
-	private String generateLogoutToken(org.springframework.security.oauth2.jwt.JwtEncoder jwtEncoder,
-			String principalName, String audience, String issuer) {
-		org.springframework.security.oauth2.jwt.JwsHeader jwsHeader = org.springframework.security.oauth2.jwt.JwsHeader
-				.with(org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.RS256).build();
-		org.springframework.security.oauth2.jwt.JwtClaimsSet claims = org.springframework.security.oauth2.jwt.JwtClaimsSet
-				.builder()
-				.issuer(issuer)
-				.subject(principalName)
-				.audience(java.util.Collections.singletonList(audience))
-				.issuedAt(java.time.Instant.now())
-				.id(java.util.UUID.randomUUID().toString())
-				.claim("events",
-						java.util.Collections.singletonMap("http://schemas.openid.net/event/backchannel-logout",
-								new java.util.HashMap<>()))
-				.claim("sid", principalName)
-				.build();
-		return jwtEncoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(jwsHeader, claims))
-				.getTokenValue();
-	}
-
-	private void sendLogoutToken(String url, String token) {
-		java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
-		java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-				.uri(java.net.URI.create(url))
-				.header("Content-Type", "application/x-www-form-urlencoded")
-				.POST(java.net.http.HttpRequest.BodyPublishers.ofString("logout_token=" + token))
-				.build();
-		client.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.discarding())
-				.thenAccept(res -> System.out.println("Logout token sent to " + url + " code=" + res.statusCode()))
-				.exceptionally(ex -> {
-					System.err.println("Failed to send token to " + url + ": " + ex.getMessage());
-					return null;
-				});
+		this.cachedAllowedHosts = hosts;
+		this.hostsLoadedAt = now;
+		return hosts;
 	}
 }

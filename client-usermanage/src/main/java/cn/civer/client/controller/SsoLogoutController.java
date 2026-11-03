@@ -1,28 +1,46 @@
 package cn.civer.client.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 
+/**
+ * OIDC Back-Channel Logout 端点：接收认证中心推送的 logout_token，失效本应用内该用户的会话。
+ */
 @RestController
 public class SsoLogoutController {
 
+	private static final Logger log = LoggerFactory.getLogger(SsoLogoutController.class);
+
 	private final SessionRegistry sessionRegistry;
 
-	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.provider.auth-server.issuer-uri}")
+	@Value("${spring.security.oauth2.client.provider.auth-server.issuer-uri}")
 	private String issuerUri;
 
-	@org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
+	@Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
 	private String clientId;
 
 	public SsoLogoutController(SessionRegistry sessionRegistry) {
 		this.sessionRegistry = sessionRegistry;
 	}
+
+	/** 复用 decoder：每次 new 会丢弃内部的 JWKS 缓存，导致每次登出都重新拉取密钥集 */
+	private volatile JwtDecoder cachedDecoder;
+	private volatile String cachedDecoderUri;
 
 	@PostMapping("/api/sso-logout")
 	public String ssoLogout(@RequestParam(name = "logout_token", required = false) String logoutToken) {
@@ -40,11 +58,7 @@ public class SsoLogoutController {
 			}
 			String jwkSetUri = base + "/oauth2/jwks";
 
-			org.springframework.security.oauth2.jwt.JwtDecoder decoder = org.springframework.security.oauth2.jwt.NimbusJwtDecoder
-					.withJwkSetUri(jwkSetUri)
-					.build();
-
-			org.springframework.security.oauth2.jwt.Jwt jwt = decoder.decode(logoutToken);
+			Jwt jwt = decoder(jwkSetUri).decode(logoutToken);
 
 			if (!jwt.getAudience().contains(clientId)) {
 				throw new IllegalStateException("Invalid audience: " + jwt.getAudience());
@@ -55,15 +69,31 @@ public class SsoLogoutController {
 			}
 
 			String username = jwt.getSubject();
-			System.out.println("OIDC Logout received for user: " + username);
+			log.info("[sso-logout] back-channel logout received: user={}", username);
 
 			expireUserSessions(username);
 
 			return "Logged out";
 
 		} catch (Exception e) {
-			System.err.println("OIDC Logout Failed: " + e.getMessage());
+			log.warn("[sso-logout] back-channel logout rejected: {}", e.getMessage());
 			return "Bad Request";
+		}
+	}
+
+	private JwtDecoder decoder(String jwkSetUri) {
+		JwtDecoder current = cachedDecoder;
+		if (current != null && jwkSetUri.equals(cachedDecoderUri)) {
+			return current;
+		}
+		synchronized (this) {
+			if (cachedDecoder != null && jwkSetUri.equals(cachedDecoderUri)) {
+				return cachedDecoder;
+			}
+			JwtDecoder created = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+			cachedDecoder = created;
+			cachedDecoderUri = jwkSetUri;
+			return created;
 		}
 	}
 
@@ -72,12 +102,16 @@ public class SsoLogoutController {
 		try {
 			int i = token.indexOf('.');
 			int j = token.indexOf('.', i + 1);
-			if (j <= i) return null;
+			if (j <= i) {
+				return null;
+			}
 			String payload = token.substring(i + 1, j);
 			byte[] decoded = Base64.getUrlDecoder().decode(payload);
-			String json = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
+			String json = new String(decoded, StandardCharsets.UTF_8);
 			int issIdx = json.indexOf("\"iss\"");
-			if (issIdx < 0) return null;
+			if (issIdx < 0) {
+				return null;
+			}
 			int colon = json.indexOf(':', issIdx + 1);
 			int start = json.indexOf('"', colon + 1) + 1;
 			int end = json.indexOf('"', start);
@@ -91,21 +125,20 @@ public class SsoLogoutController {
 		List<Object> allPrincipals = sessionRegistry.getAllPrincipals();
 		for (Object principal : allPrincipals) {
 			String principalName = null;
-			if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
-				principalName = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
-			} else if (principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser) {
-				principalName = ((org.springframework.security.oauth2.core.oidc.user.OidcUser) principal).getName();
+			if (principal instanceof UserDetails userDetails) {
+				principalName = userDetails.getUsername();
+			} else if (principal instanceof OidcUser oidcUser) {
+				principalName = oidcUser.getName();
 			} else {
 				principalName = principal.toString();
 			}
 
 			if (username.equals(principalName)) {
-				List<org.springframework.security.core.session.SessionInformation> sessions = sessionRegistry
-						.getAllSessions(principal, false);
-				for (org.springframework.security.core.session.SessionInformation session : sessions) {
+				List<SessionInformation> sessions = sessionRegistry.getAllSessions(principal, false);
+				for (SessionInformation session : sessions) {
 					session.expireNow();
 				}
-				System.out.println("Invalidated session for user: " + username);
+				log.info("[sso-logout] invalidated {} session(s) for user={}", sessions.size(), username);
 			}
 		}
 	}

@@ -2,10 +2,20 @@ package cn.civer.authserver.config;
 
 import cn.civer.authserver.entity.User;
 import cn.civer.authserver.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -13,80 +23,90 @@ import java.util.UUID;
 @Configuration
 public class DataInitializer {
 
-	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.client-id}")
+	private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
+
+	@Value("${app.auth.initial-client.client-id}")
 	private String clientId;
 
-	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.client-secret}")
+	@Value("${app.auth.initial-client.client-secret}")
 	private String clientSecret;
 
-	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.redirect-uris}")
+	@Value("${app.auth.initial-client.redirect-uris}")
 	private String[] redirectUris;
 
-	@org.springframework.beans.factory.annotation.Value("${app.auth.initial-client.post-logout-redirect-uri}")
+	@Value("${app.auth.initial-client.post-logout-redirect-uri}")
 	private String postLogoutRedirectUri;
+
+	@Value("${app.auth.access-token-time-to-live:30m}")
+	private Duration accessTokenTtl;
+
+	/** 是否写入默认演示账号。生产环境应设为 false 并自行初始化账号。 */
+	@Value("${app.bootstrap.seed-demo-users:true}")
+	private boolean seedDemoUsers;
+
+	@Value("${app.bootstrap.demo-user-password:password}")
+	private String demoUserPassword;
 
 	@Bean
 	public CommandLineRunner initData(UserRepository userRepository,
 			PasswordEncoder passwordEncoder,
-			org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository registeredClientRepository) {
+			RegisteredClientRepository registeredClientRepository) {
 		return args -> {
-			// Initialize Users
-			if (userRepository.count() == 0) {
-				userRepository.save(new User("admin", passwordEncoder.encode("password"), "ROLE_ADMIN"));
-				userRepository.save(new User("user", passwordEncoder.encode("password"), "ROLE_USER"));
-				System.out.println("Default users created: admin/password, user/password");
-			}
-
-			// Initialize default client
-			if (registeredClientRepository.findByClientId(clientId) == null) {
-				org.springframework.security.oauth2.server.authorization.client.RegisteredClient registeredClient = org.springframework.security.oauth2.server.authorization.client.RegisteredClient
-						.withId(UUID.randomUUID().toString())
-						.clientId(clientId)
-						.clientSecret(passwordEncoder.encode(clientSecret)) // Secret encryption
-						.clientAuthenticationMethod(
-								org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-						.clientAuthenticationMethod(
-								org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_POST)
-						.authorizationGrantType(
-								org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
-						.authorizationGrantType(
-								org.springframework.security.oauth2.core.AuthorizationGrantType.REFRESH_TOKEN)
-						.redirectUri(redirectUris[0])
-						.redirectUri(redirectUris.length > 1 ? redirectUris[1] : redirectUris[0]) // Basic handling
-						.postLogoutRedirectUri(postLogoutRedirectUri)
-						.scope(org.springframework.security.oauth2.core.oidc.OidcScopes.OPENID)
-						.scope(org.springframework.security.oauth2.core.oidc.OidcScopes.PROFILE)
-						.clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-								.builder()
-								.requireAuthorizationConsent(true).requireProofKey(true).build()) // Enable Consent &
-																									// PKCE
-						.tokenSettings(org.springframework.security.oauth2.server.authorization.settings.TokenSettings
-								.builder()
-								.accessTokenTimeToLive(Duration.ofMinutes(30))
-								.build())
-						.build();
-
-				registeredClientRepository.save(registeredClient);
-				System.out.println("Initialized default client: " + clientId);
-			} else {
-				// Update existing client to ensure CONSENT is enabled (for dev/demo purpose)
-				// Note: Ideally migration script, but here we force update for user request.
-				// However, standard Repo might not support easy update if not JPA.
-				// Since we use JdbcRegisteredClientRepository, save overwrites if ID matches,
-				// but we generate UUID.
-				// So we rely on findByClientId check. If it exists, we assume it's good OR we
-				// warn.
-				// The user asked to enable consent. If DB exists, code above won't run.
-				// To force update, we need to fetch and save.
-				var existing = registeredClientRepository.findByClientId(clientId);
-				// Check if consent is enabled? Hard to check deeply.
-				// Let's force an update by re-building it using existing ID?
-				// Or simpler: User should clear DB or we trust the code.
-				// Decision: For this session, I will just print a log. If user has issues, they
-				// verify DB.
-				System.out.println(
-						"Client " + clientId + " already exists. Ensure requireAuthorizationConsent is true in DB.");
-			}
+			initUsers(userRepository, passwordEncoder);
+			initClient(passwordEncoder, registeredClientRepository);
 		};
+	}
+
+	private void initUsers(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+		if (!seedDemoUsers) {
+			log.info("[bootstrap] seed-demo-users=false, skip default users");
+			return;
+		}
+		if (userRepository.count() > 0) {
+			return;
+		}
+		userRepository.save(new User("admin", passwordEncoder.encode(demoUserPassword), "ROLE_ADMIN"));
+		userRepository.save(new User("user", passwordEncoder.encode(demoUserPassword), "ROLE_USER"));
+		// 默认口令是安全事故的常见源头，必须醒目提示
+		log.warn("[bootstrap] 已创建默认演示账号 admin / user，口令取自 app.bootstrap.demo-user-password。"
+				+ "生产环境请立即改密，或设置 app.bootstrap.seed-demo-users=false 关闭该行为。");
+	}
+
+	private void initClient(PasswordEncoder passwordEncoder,
+			RegisteredClientRepository registeredClientRepository) {
+		RegisteredClient existing = registeredClientRepository.findByClientId(clientId);
+		if (existing != null) {
+			// 已存在则不动：JdbcRegisteredClientRepository 没有 update 语义，
+			// 拿新 UUID 重建会留下孤儿授权记录，交给管理后台修改更安全。
+			log.info("[bootstrap] client already exists, skip: clientId={}", clientId);
+			return;
+		}
+
+		RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
+				.clientId(clientId)
+				.clientSecret(passwordEncoder.encode(clientSecret))
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+				.postLogoutRedirectUri(postLogoutRedirectUri)
+				.scope(OidcScopes.OPENID)
+				.scope(OidcScopes.PROFILE)
+				.clientSettings(ClientSettings.builder()
+						.requireAuthorizationConsent(true)
+						.requireProofKey(true)
+						.build())
+				.tokenSettings(TokenSettings.builder()
+						.accessTokenTimeToLive(accessTokenTtl)
+						.build());
+		// 逐个注册，修掉原先只取前两个、不足时又重复第一个的问题
+		for (String uri : redirectUris) {
+			if (uri != null && !uri.isBlank()) {
+				builder = builder.redirectUri(uri.trim());
+			}
+		}
+		registeredClientRepository.save(builder.build());
+		log.info("[bootstrap] initialized default client: clientId={}, redirectUriCount={}",
+				clientId, redirectUris.length);
 	}
 }

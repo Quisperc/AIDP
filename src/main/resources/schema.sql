@@ -58,3 +58,15 @@ CREATE TABLE IF NOT EXISTS oauth2_authorization_consent (
     authorities varchar(1000) NOT NULL,
     PRIMARY KEY (registered_client_id, principal_name)
 );
+
+-- 索引：全局登出会按 principal_name 删除同意记录与授权记录，
+-- 删除客户端时按 registered_client_id 清理，client_id 则是每次登录都要查。
+-- 缺索引时这些操作都会退化成全表扫描。
+CREATE INDEX IF NOT EXISTS idx_oauth2_authorization_principal
+    ON oauth2_authorization (principal_name);
+CREATE INDEX IF NOT EXISTS idx_oauth2_authorization_client
+    ON oauth2_authorization (registered_client_id);
+CREATE INDEX IF NOT EXISTS idx_oauth2_authorization_consent_principal
+    ON oauth2_authorization_consent (principal_name);
+CREATE INDEX IF NOT EXISTS idx_oauth2_registered_client_client_id
+    ON oauth2_registered_client (client_id);

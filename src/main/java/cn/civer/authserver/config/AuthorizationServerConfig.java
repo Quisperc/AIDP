@@ -1,21 +1,34 @@
 package cn.civer.authserver.config;
 
+import cn.civer.authserver.handler.LoginSuccessHandler;
+import cn.civer.authserver.handler.SsoLogoutSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
 @EnableWebSecurity
 public class AuthorizationServerConfig {
 
-	@org.springframework.beans.factory.annotation.Autowired
-	private cn.civer.authserver.handler.SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
+	private final SsoLogoutSuccessHandler ssoLogoutSuccessHandler;
+	private final LoginSuccessHandler loginSuccessHandler;
+
+	// 构造器注入，替代原先的字段注入 + 在配置里 new handler
+	public AuthorizationServerConfig(SsoLogoutSuccessHandler ssoLogoutSuccessHandler,
+			LoginSuccessHandler loginSuccessHandler) {
+		this.ssoLogoutSuccessHandler = ssoLogoutSuccessHandler;
+		this.loginSuccessHandler = loginSuccessHandler;
+	}
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -26,7 +39,7 @@ public class AuthorizationServerConfig {
 						.anyRequest().authenticated())
 				.formLogin((form) -> form
 						.loginPage("/login")
-						.successHandler(new cn.civer.authserver.handler.LoginSuccessHandler())
+						.successHandler(loginSuccessHandler)
 						.permitAll())
 				.logout((logout) -> logout
 						.logoutUrl("/logout")
@@ -48,17 +61,14 @@ public class AuthorizationServerConfig {
 	}
 
 	@Bean
-	public org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService authorizationConsentService(
+	public OAuth2AuthorizationConsentService authorizationConsentService(
 			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
-		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService(
-				jdbcTemplate, registeredClientRepository);
+		return new JdbcOAuth2AuthorizationConsentService(jdbcTemplate, registeredClientRepository);
 	}
 
 	@Bean
-	public org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService authorizationService(
+	public OAuth2AuthorizationService authorizationService(
 			JdbcTemplate jdbcTemplate, RegisteredClientRepository registeredClientRepository) {
-		return new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService(
-				jdbcTemplate, registeredClientRepository);
+		return new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
 	}
-
 }

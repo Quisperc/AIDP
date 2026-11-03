@@ -4,6 +4,7 @@ import cn.civer.client.service.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,25 +35,25 @@ public class UserController {
 	}
 
 	@PostMapping("/{id}/delete") // Using POST for form submission simplicity instead of DELETE
-	public String deleteUser(@org.springframework.web.bind.annotation.PathVariable Long id) {
+	public String deleteUser(@PathVariable Long id) {
 		userService.deleteUser(id);
 		return "redirect:/admin/users";
 	}
 
 	@PostMapping("/{id}/enable")
-	public String enableUser(@org.springframework.web.bind.annotation.PathVariable Long id) {
+	public String enableUser(@PathVariable Long id) {
 		return "redirect:/admin/users";
 	}
 
 	@GetMapping("/{id}/edit")
-	public String editUserPage(@org.springframework.web.bind.annotation.PathVariable Long id, Model model) {
+	public String editUserPage(@PathVariable Long id, Model model) {
 		UserService.UserDto user = userService.getUser(id);
 		model.addAttribute("user", user);
 		return "user-edit";
 	}
 
 	@PostMapping("/{id}/update")
-	public String updateUser(@org.springframework.web.bind.annotation.PathVariable Long id,
+	public String updateUser(@PathVariable Long id,
 			@ModelAttribute UserService.UserDto user) {
 		// user object from form might have null username.
 		// logic: existing user details + form updates.
@@ -71,7 +72,7 @@ public class UserController {
 	}
 
 	@PostMapping("/{id}/status")
-	public String toggleStatus(@org.springframework.web.bind.annotation.PathVariable Long id) {
+	public String toggleStatus(@PathVariable Long id) {
 		// Robust Logic: Fetch -> Toggle -> Save
 		UserService.UserDto user = userService.getUser(id);
 		user.setEnabled(!user.isEnabled());

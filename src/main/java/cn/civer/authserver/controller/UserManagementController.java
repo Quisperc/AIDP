@@ -2,12 +2,16 @@ package cn.civer.authserver.controller;
 
 import cn.civer.authserver.entity.User;
 import cn.civer.authserver.repository.UserRepository;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,7 +28,7 @@ public class UserManagementController {
 	@GetMapping
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 	public List<User> getUsers() {
-		return userRepository.findAll(org.springframework.data.domain.Sort.by("id"));
+		return userRepository.findAll(Sort.by("id"));
 	}
 
 	@PostMapping
@@ -66,14 +70,14 @@ public class UserManagementController {
 	@PutMapping("/me")
 	@PreAuthorize("isAuthenticated()")
 	public ResponseEntity<User> updateCurrentUser(
-			@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt principal,
+			@AuthenticationPrincipal Jwt principal,
 			@RequestBody User updatedUser) {
 		String username = principal.getSubject();
 		return userRepository.findByUsername(username).map(user -> {
 			if (updatedUser.getUsername() != null && !updatedUser.getUsername().isEmpty()) {
 				String newUsername = updatedUser.getUsername().trim();
 				// 若修改用户名，检查是否已被其他用户占用
-				java.util.Optional<User> existing = userRepository.findByUsername(newUsername);
+				Optional<User> existing = userRepository.findByUsername(newUsername);
 				if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
 					return ResponseEntity.status(409).body((User) null);
 				}
