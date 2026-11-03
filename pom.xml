@@ -10,7 +10,6 @@
     </parent>
     <groupId>cn.civer</groupId>
     <artifactId>auth-server</artifactId>
-    <!-- <version>2. 0.8</version> -->
     <version>${revision}</version>
     <name>auth-server</name>
     <description>Unified Authentication System</description>
@@ -116,17 +115,8 @@
         </dependency>
     </dependencies>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>2025.1.1</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+    <!-- 依赖版本全部由 spring-boot-starter-parent 管理，无需额外导入 BOM。
+         原先进口的 spring-cloud-dependencies 从未被任何组件使用，已移除。 -->
 
     <!-- CI 发布用：将构建产物 deploy 到 CNB Maven 制品库。
          仅包含仓库地址和 ID，不包含任何账号或 Token，凭证统一在 settings.xml 中配置。 -->
@@ -138,30 +128,15 @@
         </repository>
     </distributionManagement>
 
-<!--    <build>-->
-<!--        <plugins>-->
-<!--            <plugin>-->
-<!--                <groupId>org.springframework.boot</groupId>-->
-<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
-<!--                <configuration>-->
-<!--                    <excludes>-->
-<!--                        <exclude>-->
-<!--                            <groupId>org.projectlombok</groupId>-->
-<!--                            <artifactId>lombok</artifactId>-->
-<!--                        </exclude>-->
-<!--                    </excludes>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-<!--        </plugins>-->
-<!--    </build>-->
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <!-- 用 release 参数而不是 source/target：同时约束字节码版本与可用 API，
+                         避免在 JDK 25 上编译出「能编译、运行时 NoSuchMethod」的产物 -->
+                    <release>${java.version}</release>
                     <encoding>UTF-8</encoding>
 
                     <annotationProcessorPaths>
@@ -187,24 +162,18 @@
 
                     <jvmArguments>-Dfile.encoding=UTF-8</jvmArguments>
                 </configuration>
-
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
 
-            <!-- 该插件在构建时生成扁平化的 .flattened-pom.xml，确保部署到私有仓库的 POM 文件包含正确的版本号（即解析后的实际版本），避免其他项目引用时出现 ${revision} 占位符。 -->
+            <!-- 该插件在构建时生成扁平化的 .flattened-pom.xml，确保部署到私有仓库的 POM 文件包含正确的版本号（即解析后的实际版本），避免其他项目引用时出现 ${revision} 占位符。
+                 updatePomFile=false：只产出 .flattened-pom.xml，不回写源码树里的 pom.xml，
+                 否则本地每次构建都会把 pom.xml 改成含解析版本号的样子，git 永远脏。 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
                 <version>1.5.0</version>
                 <configuration>
                     <flattenMode>resolveCiFriendliesOnly</flattenMode>
-                    <updatePomFile>true</updatePomFile>
+                    <updatePomFile>false</updatePomFile>
                 </configuration>
                 <executions>
                     <execution>
