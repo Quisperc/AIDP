@@ -1,21 +1,19 @@
-# 选择与你编译环境一致的基础镜像
+# CI 依赖预热镜像
+#
+# 注意：这里刻意不使用 BuildKit 的 `--mount=type=cache`。
+# 该语法把下载结果写进「构建缓存目录」，而不是镜像层 —— 构建结束后
+# /root/.m2 依然是空的，产出的缓存镜像只是个空壳，后续 stage 仍要全量下载依赖
+# （这是原实现的实际行为）。改成普通的 RUN，让依赖真正落进镜像层，
+# 再由 Docker 的层缓存决定是否跳过：pom 不变就不会重新下载。
 FROM maven:3.9.12-eclipse-temurin-25
 
 WORKDIR /build_cache
 
-# 拷贝依赖定义文件
+# 先只拷贝依赖定义文件，保证「改代码」不会让这一层失效
 COPY pom.xml .
-COPY client-usermanage/pom.xml client-usermanage/pom.xml
+COPY client-usermanage/pom.xml client-usermanage/
 
-# # 预下载所有依赖到镜像内的 /root/.m2
-# # go-offline 会下载所有插件和依赖，-B 是非交互模式
-# RUN mvn dependency:go-offline -B
-
-# # 也可以在此预先创建目录防止权限问题
-# RUN mkdir -p /root/.m2
-
-
-# 使用 BuildKit 挂载缓存目录
-# target 指向镜像内 m2 路径，id 确保不同构建共享同一块缓存存储
-RUN --mount=type=cache,id=maven-cache,target=/root/.m2 \
-    mvn dependency:go-offline -B
+# 认证中心与管理后台各自预热。两个 pom 相互独立（client-usermanage 直接继承
+# spring-boot-starter-parent，不是根 pom 的子模块），必须分别执行。
+RUN mvn -B -q dependency:go-offline
+RUN mvn -B -q -f client-usermanage/pom.xml dependency:go-offline

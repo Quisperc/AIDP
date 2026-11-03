@@ -1,22 +1,50 @@
-# .github/workflows/sync-cnb.yml
-
+# GitHub → CNB 单向镜像同步
+#
+# 为什么改成原生 git 而不是 docker://tencentcom/git-sync：
+# 1. 原实现在分支推送被拒（non-fast-forward）时整步失败，**连标签都不会推**，
+#    于是发布链路静默断掉且没有任何提示 —— 2026-11 就是这样断了 4 次没人发现；
+# 2. 原生命令把「推标签」和「推分支」拆成两步，标签先走，
+#    分支同步出问题也不会挡住版本发布；
+# 3. 出错时的报错是 git 原文，比插件包一层更容易定位。
+#
+# 分支同步仍是普通 push（非强制）：一旦 CNB 侧有独立提交就会失败并报警，
+# 这是刻意的 —— 让分叉暴露出来，而不是用 force 把对面的提交悄悄冲掉。
+# 真需要以 GitHub 为准重置时，按下文「修复分叉」手动执行一次。
 name: Sync to CNB
-on: [push]
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一分支/标签的同步串行执行，避免两次 push 抢同一把推送
+concurrency:
+  group: sync-cnb-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout（需要全部历史与标签）
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Sync to CNB Repository
-        uses: docker://tencentcom/git-sync
+
+      - name: 1) 同步标签（决定是否发布版本）
         env:
-          PLUGIN_TARGET_URL: "https://cnb.cool/civer/Quisperc/AIDP.git"
-          PLUGIN_AUTH_TYPE: "https"
-          PLUGIN_USERNAME: "cnb"
-          PLUGIN_PASSWORD: ${{ secrets.GIT_PASSWORD }}
-          PLUGIN_SYNC_MODE: "push"
-          PLUGIN_PUSH_TAGS: "true"
+          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          git push "https://cnb:${GIT_PASSWORD}@cnb.cool/civer/Quisperc/AIDP.git" --tags
+
+      - name: 2) 同步分支（镜像主干，不强制覆盖）
+        env:
+          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # 注意不要加 --prune：--all 只推本地存在的分支，
+          # 配合 --prune 会把 CNB 上其它分支（如 feature 分支）删掉。
+          git push "https://cnb:${GIT_PASSWORD}@cnb.cool/civer/Quisperc/AIDP.git" --all

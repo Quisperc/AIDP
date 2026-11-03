@@ -50,3 +50,6 @@ dist/
 
 ### EdgeOne Pages 部署产物（纯静态，不进仓库）###
 pages-out/
+
+### 前端本地覆盖（个人环境变量，不提交）###
+frontend/.env.local

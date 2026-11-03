@@ -1,34 +1,53 @@
-# 1. 匹配以 auth-v 开头的标签 (如 auth-v2.1.2)
+# AIDP 自动发布流水线
+#
+# 链路：本地 push → GitHub → (Actions: sync-cnb.yml) → CNB 仓库 → 本文件定义的 tag 流水线
+#       → 构建 jar → rsync 到服务器 → 重启容器 → 健康校验
+#
+# 两条流水线按标签前缀区分：
+#   auth-v2.3.9 → 认证中心（src/）
+#   user-v2.3.9 → 管理后台（client-usermanage/）
+# 标签必须是三段式版本号，否则构建阶段会立刻失败（原实现会把 auth-vfoo 当版本号用）。
+#
+# 服务器侧目录约定见 deploy/README.md —— 那部分不在仓库里，属于必须人工核对的前提。
+
 "auth-v*":
   tag_push:
-    - imports: 
+    - imports:
         - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
       services:
         - docker
       stages:
-        - name: 1. 匹配依赖缓存
+        - name: 1. 构建依赖缓存镜像
           type: docker:cache
           options:
             dockerfile: cache.dockerfile
             tag: maven-common-cache
             # 必须包含所有被 COPY 的文件，否则上下文就是空的
-            by: 
+            by:
               - pom.xml
               - client-usermanage/pom.xml
           exports:
             name: DOCKER_CACHE_IMAGE
 
-        - name: 2a. 编译 Auth-Server
+        - name: 2a. 测试 + 构建 + 发布制品 (Auth-Server)
           image: $DOCKER_CACHE_IMAGE
           script:
             # 仅提取版本号部分：auth-v2.1.2 -> 2.1.2
             - AUTH_VERSION=${CNB_BRANCH#auth-v}
+            - echo "$AUTH_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "标签必须形如 auth-v1.2.3，当前为 $CNB_BRANCH"; exit 1; }
+            # 一次构建同时跑测试、产出 jar、把制品推到 CNB Maven 库。
+            # 不再带 -DskipTests：此前 14 个回归测试从未在发布前跑过。
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
             - chmod 600 ./temp_settings.xml
-            - mvn -B clean deploy -DskipTests -Drevision=$AUTH_VERSION -s ./temp_settings.xml --no-transfer-progress
-            - mv target/*.jar target/Auth-Server.jar
+            # Maven 仓库不接受同版本重复发布：重跑旧标签做回滚时 deploy 会失败，
+            # 此时退回纯本地构建，保证 jar 仍然产出、部署照常进行。
+            - mvn -B clean deploy -Drevision=$AUTH_VERSION -s ./temp_settings.xml --no-transfer-progress || { echo "制品发布失败（版本可能已存在），改用本地构建"; mvn -B clean package -Drevision=$AUTH_VERSION --no-transfer-progress; }
+            # 显式挑出可执行 jar：*.jar 一旦将来多出 sources/javadoc 包，mv 就会失败
+            - JAR=$(find target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -1)
+            - test -n "$JAR" || { echo "未找到构建产物 jar"; exit 1; }
+            - mv "$JAR" target/Auth-Server.jar
 
-        - name: 3a. 同步并重启 Auth-Server
+        - name: 3a. 同步 + 重启 + 健康校验
           image: tencentcom/rsync
           settings:
             user: $SERVER_USER
@@ -39,39 +58,48 @@
             script:
               - cd /opt/1panel/runtime/java/idp_auth_server/
               - docker compose up -d --force-recreate
+              # 重启后必须探活：原来只要 rsync 成功就算发布成功，
+              # jar 启动失败（配置错、端口冲突、连不上库）也会显示绿灯。
+              - HEALTH_URL=$AUTH_HEALTH_URL
+              - test -n "$AUTH_HEALTH_URL" || HEALTH_URL=http://127.0.0.1:18090/actuator/health
+              - for i in $(seq 1 40); do curl -fsS "$HEALTH_URL" 2>/dev/null | grep -q '"UP"' && { echo "health UP $HEALTH_URL"; exit 0; }; sleep 3; done
+              - echo "健康检查失败，容器未就绪 $HEALTH_URL"; docker compose ps; docker logs --tail 120 idp_auth_server; exit 1
 
 # 2. 匹配以 user-v 开头的标签 (如 user-v2.0.7)
 "user-v*":
   tag_push:
-    - imports: 
+    - imports:
         - https://cnb.cool/civer/mytoken/-/blob/main/server-config.yml
       services:
         - docker
       stages:
-        - name: 1. 匹配依赖缓存
+        - name: 1. 构建依赖缓存镜像
           type: docker:cache
           options:
             dockerfile: cache.dockerfile
             tag: maven-common-cache
-            # 必须包含所有被 COPY 的文件，否则上下文就是空的
-            by: 
+            by:
               - pom.xml
               - client-usermanage/pom.xml
           exports:
             name: DOCKER_CACHE_IMAGE
 
-        - name: 2b. 编译 User-Manage
+        - name: 2b. 测试 + 构建 + 发布制品 (User-Manage)
           image: $DOCKER_CACHE_IMAGE
           script:
             # 仅提取版本号部分：user-v2.0.7 -> 2.0.7
             - USER_VERSION=${CNB_BRANCH#user-v}
+            - echo "$USER_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "标签必须形如 user-v1.2.3，当前为 $CNB_BRANCH"; exit 1; }
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
             - chmod 600 ./temp_settings.xml
+            # 必须在模块目录内执行，否则构建/测试的是根模块（认证中心）
             - cd client-usermanage
-            - mvn -B clean deploy -DskipTests -Drevision=$USER_VERSION -s ../temp_settings.xml --no-transfer-progress
-            - mv target/*.jar target/UserManage-Server.jar
+            - mvn -B clean deploy -Drevision=$USER_VERSION -s ../temp_settings.xml --no-transfer-progress || { echo "制品发布失败（版本可能已存在），改用本地构建"; mvn -B clean package -Drevision=$USER_VERSION --no-transfer-progress; }
+            - JAR=$(find target -maxdepth 1 -name '*.jar' ! -name '*.original' | head -1)
+            - test -n "$JAR" || { echo "未找到构建产物 jar"; exit 1; }
+            - mv "$JAR" target/UserManage-Server.jar
 
-        - name: 3b. 同步并重启 User-Manage
+        - name: 3b. 同步 + 重启 + 健康校验
           image: tencentcom/rsync
           settings:
             user: $SERVER_USER
@@ -82,3 +110,7 @@
             script:
               - cd /opt/1panel/runtime/java/idp_user_manage/
               - docker compose up -d --force-recreate
+              - HEALTH_URL=$USER_HEALTH_URL
+              - test -n "$USER_HEALTH_URL" || HEALTH_URL=http://127.0.0.1:18082/actuator/health
+              - for i in $(seq 1 40); do curl -fsS "$HEALTH_URL" 2>/dev/null | grep -q '"UP"' && { echo "health UP $HEALTH_URL"; exit 0; }; sleep 3; done
+              - echo "健康检查失败，容器未就绪 $HEALTH_URL"; docker compose ps; docker logs --tail 120 idp_user_manage; exit 1
