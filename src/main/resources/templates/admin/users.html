@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('用户')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('users')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">用户</h1>
+				<p class="page-desc">
+					共 <span th:text="${#lists.size(users)}">0</span> 个账号。
+					停用不清除授权记录，可再次编辑恢复。
+				</p>
+			</div>
+			<a class="btn btn-primary" th:href="@{/admin/users/new}">新增用户</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div th:if="${#lists.isEmpty(users)}" class="empty">还没有用户。点右上角「新增用户」创建第一个账号。</div>
+			<div class="table-wrap" th:unless="${#lists.isEmpty(users)}">
+				<table class="table">
+					<thead>
+						<tr>
+							<th class="cell-narrow">ID</th>
+							<th>用户名</th>
+							<th>角色</th>
+							<th>状态</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="u : ${users}">
+							<td class="cell-mono" th:text="${u.id}">1</td>
+							<td class="cell-name" th:text="${u.username}">admin</td>
+							<td>
+								<span class="badge"
+									th:classappend="${u.role == 'ROLE_ADMIN'} ? 'badge-admin' : 'badge-off'"
+									th:text="${u.role == 'ROLE_ADMIN'} ? '管理员' : '普通用户'">普通用户</span>
+							</td>
+							<td>
+								<span class="badge"
+									th:classappend="${u.enabled} ? 'badge-ok' : 'badge-off'"
+									th:text="${u.enabled} ? '已启用' : '已停用'">已启用</span>
+							</td>
+							<td class="cell-narrow">
+								<div class="row-actions">
+									<a class="btn" th:href="@{/admin/users/{id}/edit(id=${u.id})}">编辑</a>
+									<form th:if="${u.enabled}"
+										th:action="@{/admin/users/{id}/delete(id=${u.id})}" method="post"
+										onsubmit="return confirm('停用「' + this.dataset.name + '」？可在编辑页重新启用。')"
+										th:attr="data-name=${u.username}">
+										<button type="submit" class="btn btn-danger">停用</button>
+									</form>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

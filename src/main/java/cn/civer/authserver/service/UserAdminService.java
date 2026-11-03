@@ -17,8 +17,9 @@ import java.util.List;
 /**
  * 用户管理业务逻辑。
  *
- * 原先散在 UserManagementController 里：密码编码、唯一性判断、软删除、改自己的账号。
- * 收拢到这里后，Controller 只剩参数校验与响应组装，业务规则可独立测试。
+ * 入参一律用字符串/布尔，不再接收 {@link User} 实体：
+ * 实体作为请求体时，「字段没传」和「传了默认值」区分不开（enabled 曾因此在
+ * 只改角色时把停用用户重新启用）。表单语义下由调用方显式给出每个字段更准确。
  */
 @Service
 public class UserAdminService {
@@ -47,43 +48,52 @@ public class UserAdminService {
 	}
 
 	@Transactional
-	public UserResponse create(User request) {
-		if (!StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
+	public UserResponse create(String rawUsername, String rawPassword, String role) {
+		if (!StringUtils.hasText(rawUsername) || !StringUtils.hasText(rawPassword)) {
 			throw BusinessException.badRequest("用户名与密码均不能为空。");
 		}
-		String username = request.getUsername().trim();
+		String username = rawUsername.trim();
 		if (userRepository.findByUsername(username).isPresent()) {
 			throw BusinessException.conflict("用户名已被使用: " + username);
 		}
 		User user = new User();
 		user.setUsername(username);
-		user.setPassword(passwordEncoder.encode(request.getPassword()));
-		user.setRole(StringUtils.hasText(request.getRole()) ? request.getRole() : DEFAULT_ROLE);
+		user.setPassword(passwordEncoder.encode(rawPassword));
+		user.setRole(StringUtils.hasText(role) ? role : DEFAULT_ROLE);
 		user.setEnabled(true);
 		log.info("[users] created: username={}", username);
 		return UserResponse.from(userRepository.save(user));
 	}
 
+	/**
+	 * 更新角色、启用状态，可选重置密码。
+	 *
+	 * @param newPassword 为空表示不修改
+	 */
 	@Transactional
-	public UserResponse update(Long id, User request) {
+	public UserResponse update(Long id, String role, boolean enabled, String newPassword) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
-		if (StringUtils.hasText(request.getRole())) {
-			user.setRole(request.getRole());
+		if (StringUtils.hasText(role)) {
+			user.setRole(role);
 		}
-		user.setEnabled(request.isEnabled());
-		if (StringUtils.hasText(request.getPassword())) {
-			user.setPassword(passwordEncoder.encode(request.getPassword()));
+		user.setEnabled(enabled);
+		if (StringUtils.hasText(newPassword)) {
+			user.setPassword(passwordEncoder.encode(newPassword));
 		}
-		log.info("[users] updated: id={}", id);
+		log.info("[users] updated: id={}, enabled={}", id, enabled);
 		return UserResponse.from(userRepository.save(user));
 	}
 
+	/**
+	 * 停用（软删除）：保留授权与审计痕迹，不做物理删除。
+	 * 按钮文案写「停用」，路由仍是 /delete，两者在文档里都有说明。
+	 */
 	@Transactional
 	public void disable(Long id) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
-		user.setEnabled(false); // 软删除：保留授权与审计痕迹
+		user.setEnabled(false);
 		userRepository.save(user);
 		log.info("[users] disabled: id={}", id);
 	}
@@ -91,24 +101,24 @@ public class UserAdminService {
 	/**
 	 * 修改当前登录者自己的账号。
 	 *
-	 * 注意此处不广播全局登出：由客户端改完后重定向到 /oauth2/logout-all，
-	 * 统一做一次退出，避免重复广播。
+	 * 改完由调用方跳全局退出（/oauth2/logout-all），把旧会话与各子系统一起清掉，
+	 * 否则旧用户名在其它系统的会话里仍然有效。
 	 */
 	@Transactional
-	public UserResponse updateSelf(String currentUsername, User request) {
+	public UserResponse updateSelf(String currentUsername, String newUsername, String newPassword) {
 		User user = userRepository.findByUsername(currentUsername)
 				.orElseThrow(() -> BusinessException.notFound("当前用户不存在: " + currentUsername));
-		if (StringUtils.hasText(request.getUsername())) {
-			String newUsername = request.getUsername().trim();
-			userRepository.findByUsername(newUsername)
+		if (StringUtils.hasText(newUsername) && !newUsername.trim().equals(currentUsername)) {
+			String target = newUsername.trim();
+			userRepository.findByUsername(target)
 					.filter(other -> !other.getId().equals(user.getId()))
 					.ifPresent(other -> {
-						throw BusinessException.conflict("用户名已被使用: " + newUsername);
+						throw BusinessException.conflict("用户名已被使用: " + target);
 					});
-			user.setUsername(newUsername);
+			user.setUsername(target);
 		}
-		if (StringUtils.hasText(request.getPassword())) {
-			user.setPassword(passwordEncoder.encode(request.getPassword()));
+		if (StringUtils.hasText(newPassword)) {
+			user.setPassword(passwordEncoder.encode(newPassword));
 		}
 		log.info("[users] self-updated: username={}", currentUsername);
 		return UserResponse.from(userRepository.save(user));

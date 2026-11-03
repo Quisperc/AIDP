@@ -3,13 +3,20 @@ package cn.civer.authserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import cn.civer.authserver.service.SsoLogoutService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -33,12 +40,33 @@ class OpenRedirectSecurityTest {
 
     private MockMvc mockMvc;
 
+    @Autowired
+    private RegisteredClientRepository registeredClientRepository;
+
+    @Autowired
+    private SsoLogoutService ssoLogoutService;
+
     @BeforeEach
     void setUp() {
         this.mockMvc = MockMvcBuilders
                 .webAppContextSetup(context)
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
+        // 用例自己准备一个客户端：登出白名单来自已注册客户端的 redirect_uris，
+        // 依赖启动预置数据会让这个测试和初始化逻辑耦合在一起。
+        if (registeredClientRepository.findByClientId("test-client") == null) {
+            registeredClientRepository.save(RegisteredClient.withId(UUID.randomUUID().toString())
+                    .clientId("test-client")
+                    .clientSecret("{noop}test-secret")
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .redirectUri("http://localhost:8081/login/oauth2/code/oidc-client")
+                    .postLogoutRedirectUri("http://localhost:8081/login")
+                    .scope("openid")
+                    .build());
+        }
+        // 白名单有缓存，建完客户端必须失效，否则本类里先跑的用例读到的是空集合
+        ssoLogoutService.invalidateHostCache();
     }
 
     @Test

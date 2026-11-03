@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('客户端')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('clients')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">客户端</h1>
+				<p class="page-desc">
+					共 <span th:text="${#lists.size(clients)}">0</span> 个接入应用。
+					删除会连同该客户端的授权与同意记录一起清理。
+				</p>
+			</div>
+			<a class="btn btn-primary" th:href="@{/admin/clients/new}">注册客户端</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div th:if="${#lists.isEmpty(clients)}" class="empty">
+				还没有客户端。子系统接入前需要先在这里注册，拿到 client_id / secret。
+			</div>
+			<div class="table-wrap" th:unless="${#lists.isEmpty(clients)}">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Client ID</th>
+							<th>名称</th>
+							<th>Redirect URI</th>
+							<th>PKCE</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="c : ${clients}">
+							<td class="cell-mono" th:text="${c.clientId}">client-id</td>
+							<td th:text="${#strings.isEmpty(c.clientName) ? '—' : c.clientName}">名称</td>
+							<td class="cell-mono cell-uri" th:text="${#strings.isEmpty(c.redirectUri) ? '—' : c.redirectUri}">uri</td>
+							<td>
+								<span class="badge"
+									th:classappend="${c.requirePkce} ? 'badge-ok' : 'badge-warn'"
+									th:text="${c.requirePkce} ? '已强制' : '未强制'">已强制</span>
+							</td>
+							<td class="cell-narrow">
+								<div class="row-actions">
+									<a class="btn" th:href="@{/admin/clients/{id}/edit(id=${c.clientId})}">编辑</a>
+									<form th:action="@{/admin/clients/{id}/delete(id=${c.clientId})}" method="post"
+										onsubmit="return confirm('删除「' + this.dataset.name + '」？该客户端的授权与同意记录会一并清除，且不可恢复。')"
+										th:attr="data-name=${c.clientId}">
+										<button type="submit" class="btn btn-danger">删除</button>
+									</form>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

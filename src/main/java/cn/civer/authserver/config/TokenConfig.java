@@ -14,13 +14,10 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -31,9 +28,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -170,33 +165,6 @@ public class TokenConfig {
 			builder.issuer(issuer);
 		}
 		return builder.build();
-	}
-
-	/**
-	 * 把 access token 里的 roles claim 还原成 GrantedAuthority。
-	 *
-	 * 下面的 jwtTokenCustomizer() 已经把用户角色写进 roles，但 resource server
-	 * 默认的 JwtAuthenticationConverter 只把 scope/scp 转成 SCOPE_*，完全忽略
-	 * roles。结果：token 里明明带着 ROLE_ADMIN，服务端却判不出该权限，
-	 * /api/** 的方法级 ROLE_ADMIN 校验一律返回 403。这里把两端接上。
-	 */
-	@Bean
-	public JwtAuthenticationConverter jwtAuthenticationConverter() {
-		var scopes = new JwtGrantedAuthoritiesConverter();
-		var converter = new JwtAuthenticationConverter();
-		converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-			List<GrantedAuthority> authorities = new ArrayList<>(scopes.convert(jwt));
-			Object roles = jwt.getClaims().get("roles");
-			if (roles instanceof Collection<?> values) {
-				for (Object value : values) {
-					authorities.add(new SimpleGrantedAuthority(value.toString()));
-				}
-			} else if (roles instanceof String value) {
-				authorities.add(new SimpleGrantedAuthority(value));
-			}
-			return authorities;
-		});
-		return converter;
 	}
 
 	/**

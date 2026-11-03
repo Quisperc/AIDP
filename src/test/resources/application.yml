@@ -39,12 +39,8 @@ server:
 
 app:
   base-url: http://localhost:8080
-  auth:
-    initial-client:
-      client-id: test-client
-      client-secret: test-secret
-      redirect-uris: http://localhost:8081/login/oauth2/code/oidc-client
-      post-logout-redirect-uri: http://localhost:8080/login
+  # 测试不再依赖启动预置的客户端：需要客户端的用例自己建（见 OpenRedirectSecurityTest），
+  # 这样用例是自洽的，改初始化逻辑不会连带弄坏无关测试。
 
 logging:
   level:

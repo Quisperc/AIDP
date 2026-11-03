@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head(${user == null ? '新增用户' : '编辑用户'})}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('users')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title" th:text="${user == null} ? '新增用户' : '编辑用户'">新增用户</h1>
+				<p class="page-desc">
+					<span th:if="${user == null}">用户名创建后不可修改；初始密码由你设定，交付后请提示对方尽快改密。</span>
+					<span th:unless="${user == null}">密码留空表示不修改。修改密码后该用户的现有会话不会被立即踢下线。</span>
+				</p>
+			</div>
+			<a class="btn" th:href="@{/admin/users}">返回列表</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div class="card-body">
+				<!-- actionPath 由控制器给出：新增是 /admin/users，编辑是 /admin/users/{id} -->
+				<form class="form" th:action="@{${actionPath}}" method="post">
+
+					<div class="field" th:if="${user != null}">
+						<span class="field-label">用户名</span>
+						<div class="cell-mono" th:text="${user.username}">admin</div>
+						<p class="field-hint">用户名不可修改。需要改名请让本人到「账号」页自助修改。</p>
+					</div>
+
+					<div class="field" th:if="${user == null}">
+						<label class="field-label" for="username">用户名</label>
+						<input class="input" id="username" name="username" type="text" required
+							autocomplete="off" th:value="${username}" placeholder="例如 zhangsan" />
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="password"
+							th:text="${user == null} ? '初始密码' : '重置密码（留空不修改）'">密码</label>
+						<input class="input" id="password" name="password" type="password"
+							th:required="${user == null}" autocomplete="new-password" placeholder="至少 8 位，避免使用弱口令" />
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="role">角色</label>
+						<select class="select" id="role" name="role">
+							<option value="ROLE_USER"
+								th:selected="${(user != null and user.role == 'ROLE_USER') or (user == null and role != 'ROLE_ADMIN')}">普通用户</option>
+							<option value="ROLE_ADMIN"
+								th:selected="${(user != null and user.role == 'ROLE_ADMIN') or role == 'ROLE_ADMIN'}">管理员</option>
+						</select>
+						<p class="field-hint">管理员可进入管理台，管理全部用户与客户端，请谨慎授予。</p>
+					</div>
+
+					<div class="field" th:if="${user != null}">
+						<label class="check">
+							<input type="checkbox" name="enabled" value="true" th:checked="${user.enabled}" />
+							<span>启用该账号</span>
+						</label>
+						<p class="field-hint">取消勾选即停用：无法登录，但授权记录与审计痕迹保留。</p>
+					</div>
+
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary"
+							th:text="${user == null} ? '创建用户' : '保存'">创建用户</button>
+						<a class="btn" th:href="@{/admin/users}">取消</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

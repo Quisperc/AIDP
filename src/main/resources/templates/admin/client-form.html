@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head(${client == null ? '注册客户端' : '编辑客户端'})}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('clients')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title" th:text="${client == null} ? '注册客户端' : '编辑客户端'">注册客户端</h1>
+				<p class="page-desc">
+					子系统必须先在认证中心备案，授权请求才会被接受。
+					Redirect URI 必须与子系统实际回调地址完全一致（含查询参数）。
+				</p>
+			</div>
+			<a class="btn" th:href="@{/admin/clients}">返回列表</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div class="card-body">
+				<form class="form" th:action="@{${actionPath}}" method="post">
+
+					<div class="field" th:if="${client != null}">
+						<span class="field-label">Client ID</span>
+						<div class="cell-mono" th:text="${client.clientId}">client-id</div>
+						<p class="field-hint">Client ID 不可修改。需要更换请新建一个客户端，再让子系统改配置。</p>
+					</div>
+
+					<div class="field" th:if="${client == null}">
+						<label class="field-label" for="clientId">Client ID</label>
+						<input class="input" id="clientId" name="clientId" type="text" required
+							autocomplete="off" th:value="${form?.clientId}" placeholder="例如 report-portal" />
+						<p class="field-hint">全局唯一，建议与子系统同名，便于在日志里辨认。</p>
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="clientName">显示名称</label>
+						<input class="input" id="clientName" name="clientName" type="text"
+							th:value="${client != null ? client.clientName : form?.clientName}"
+							placeholder="展示在授权同意页的名称" />
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="clientSecret"
+							th:text="${client == null} ? 'Client Secret' : '重置 Client Secret（留空不修改）'">Client Secret</label>
+						<input class="input" id="clientSecret" name="clientSecret" type="password"
+							th:required="${client == null}" autocomplete="new-password"
+							placeholder="建议用随机长串，子系统中通过环境变量注入" />
+						<p class="field-hint" th:if="${client != null}">
+							库里存的是哈希，无法回显原文。留空表示沿用原密钥。
+						</p>
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="redirectUri">Redirect URI</label>
+						<textarea class="textarea" id="redirectUri" name="redirectUri" rows="3"
+							placeholder="https://app.example.com/login/oauth2/code/oidc-client"
+							th:text="${client != null ? client.redirectUri : form?.redirectUri}"></textarea>
+						<p class="field-hint">一行一条；同一客户端可配置多条回调（如不同环境或不同回调参数）。</p>
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="postLogoutRedirectUri">Post Logout Redirect URI</label>
+						<input class="input" id="postLogoutRedirectUri" name="postLogoutRedirectUri" type="text"
+							th:value="${client != null ? client.postLogoutRedirectUri : form?.postLogoutRedirectUri}"
+							placeholder="https://app.example.com/login" />
+						<p class="field-hint">退出后允许回跳的地址；同时决定后端登出广播发往哪个 host。</p>
+					</div>
+
+					<div class="field">
+						<label class="check">
+							<input type="checkbox" name="requirePkce" value="true"
+								th:checked="${client != null ? client.requirePkce : (form != null ? form.requirePkce : true)}" />
+							<span>要求 PKCE</span>
+						</label>
+						<p class="field-hint">建议保持开启。仅在对接确实不支持 PKCE 的老系统时才关闭。</p>
+					</div>
+
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary"
+							th:text="${client == null} ? '注册' : '保存'">注册</button>
+						<a class="btn" th:href="@{/admin/clients}">取消</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

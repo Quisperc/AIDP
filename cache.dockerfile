@@ -11,9 +11,5 @@ WORKDIR /build_cache
 
 # 先只拷贝依赖定义文件，保证「改代码」不会让这一层失效
 COPY pom.xml .
-COPY client-usermanage/pom.xml client-usermanage/
 
-# 认证中心与管理后台各自预热。两个 pom 相互独立（client-usermanage 直接继承
-# spring-boot-starter-parent，不是根 pom 的子模块），必须分别执行。
 RUN mvn -B -q dependency:go-offline
-RUN mvn -B -q -f client-usermanage/pom.xml dependency:go-offline

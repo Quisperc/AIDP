@@ -1,0 +1,165 @@
+/* ==========================================================================
+   AIDP · 设计变量（tokens）
+   --------------------------------------------------------------------------
+   认证页（hig.css）与管理台（admin.css）共用这一份，改色板只改这里。
+   颜色、字阶、间距、圆角、动效时长都在此定义，含深色、高对比、降动效三个适配。
+
+   这一版解决的具体问题：
+   1. 文案全英文（Welcome Back / Sign In / Authorize）与中文管理后台割裂 —— 已统一中文；
+   2. 图标是 52px 纯蓝方块，是页面上最重的色块，抢走了主按钮的焦点 —— 改描边淡底；
+   3. 语义色直接当正文色（绿字 / 红字对比度 <3:1）—— 改为「浅底 + 深字」；
+   4. 备案号用 30% 透明度灰（约 2:1，等于不可读）—— 抬到次级正文色；
+   5. 卡片/输入框/按钮三套圆角与高度并存 —— 收敛为 12 / 42 / 44 一套。
+   ========================================================================== */
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text',
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'Hiragino Sans GB', 'Noto Sans SC', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas,
+    'Liberation Mono', monospace;
+
+  --fs-caption2: 11px;
+  --fs-caption1: 12px;
+  --fs-footnote: 13px;
+  --fs-subhead: 14px;
+  --fs-callout: 15px;
+  --fs-body: 15px;
+  --fs-title3: 18px;
+  --fs-title2: 21px;
+  --fs-title1: 26px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-pill: 999px;
+
+  --dur-fast: 0.13s;
+  --dur-base: 0.2s;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* 浅色 */
+  --bg-grouped: #f4f5f8;
+  --bg-primary: #ffffff;
+  --bg-secondary: #fafbfd;
+  --bg-elevated: #ffffff;
+
+  --fill-secondary: #f2f4f8;
+  --fill-tertiary: #f7f8fb;
+
+  --line: #e4e7ee;
+  --line-strong: #cfd5e1;
+
+  --label: #12151c;
+  --label-secondary: #5a6273;
+  --label-tertiary: #6c7486;
+  --label-quaternary: #c3c9d6;
+  --label-on-accent: #ffffff;
+
+  --separator: #e4e7ee;
+
+  --brand: #2b49c8;
+  --brand-press: #1f3699;
+  --brand-soft: rgba(43, 73, 200, 0.08);
+  --brand-soft-strong: rgba(43, 73, 200, 0.16);
+
+  --ok-ink: #0e6b46;
+  --ok-bg: #e8f6ef;
+  --ok-dot: #1f9d68;
+
+  --warn-ink: #8a5300;
+  --warn-bg: #fcf3e3;
+  --warn-dot: #c98500;
+
+  --danger-ink: #a62b21;
+  --danger-bg: #fbebe9;
+  --danger-dot: #d2453a;
+
+  --shadow-md: 0 1px 2px rgba(18, 21, 28, 0.04), 0 8px 24px -12px rgba(18, 21, 28, 0.14);
+  --focus-ring: 0 0 0 3px rgba(43, 73, 200, 0.22);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-grouped: #0b0d12;
+    --bg-primary: #14171e;
+    --bg-secondary: #1a1e26;
+    --bg-elevated: #191d25;
+
+    --fill-secondary: #1d222b;
+    --fill-tertiary: #191d25;
+
+    --line: #262c36;
+    --line-strong: #39414e;
+
+    --label: #e9edf5;
+    --label-secondary: #a6aebd;
+    --label-tertiary: #8a92a2;
+    --label-quaternary: #3a414d;
+
+    --separator: #262c36;
+
+    --brand: #4d63e8;
+    --brand-press: #5b72f0;
+    --brand-soft: rgba(120, 140, 255, 0.16);
+    --brand-soft-strong: rgba(120, 140, 255, 0.26);
+
+    --ok-ink: #6fd6a2;
+    --ok-bg: rgba(35, 162, 109, 0.16);
+    --ok-dot: #2fbf80;
+
+    --warn-ink: #f0b860;
+    --warn-bg: rgba(201, 133, 0, 0.16);
+    --warn-dot: #e0a03a;
+
+    --danger-ink: #ff9287;
+    --danger-bg: rgba(210, 69, 58, 0.16);
+    --danger-dot: #e0584c;
+
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    --focus-ring: 0 0 0 3px rgba(120, 140, 255, 0.32);
+
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --label-secondary: var(--label);
+    --label-tertiary: var(--label-secondary);
+    --line: var(--line-strong);
+    --focus-ring: 0 0 0 3px var(--brand);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0s;
+    --dur-base: 0s;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

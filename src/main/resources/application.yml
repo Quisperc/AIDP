@@ -5,8 +5,15 @@ server:
   servlet:
     session:
       cookie:
-        name: AUTH_SESSIONID # 【关键】自定义 Cookie 名称，隔离会话
-        domain: civer.cn # 注意前面的点，允许所有子域名共享
+        # 自定义名称，避免与子系统的会话 cookie 撞名
+        name: AUTH_SESSIONID
+        # 刻意不设 domain：OIDC 下各客户端各自维护自己的会话，
+        # 认证中心不需要把 cookie 发到所有子域。设成 .civer.cn 等于让
+        # idp 的会话 cookie 出现在每个子系统的请求里，扩大泄露面，
+        # 也会让本地用 127.0.0.1 调试时会话存不下来（域名不匹配被丢弃）。
+        # 确实需要跨子域共享时，再显式配置 domain。
+        http-only: true
+        same-site: lax
 
 spring:
   config:
@@ -99,16 +106,7 @@ app:
     police-icon: "/images/beian.png" # 公安备案图标，同上，路径为 /images/xxx.png
 
   auth:
-    # Initial Client Data (Auto-registered on startup if missing)
-    initial-client:
-      client-id: client-usermanage
-      # 生产必须通过环境变量 INITIAL_CLIENT_SECRET 覆盖，默认 secret 仅用于本地开发；
-      # 与各子系统侧的 CLIENT_SECRET 必须一致。
-      client-secret: ${INITIAL_CLIENT_SECRET:secret}
-      # 支持多个 URI，用逗号分隔
-      redirect-uris: http://127.0.0.1:8081/login/oauth2/code/oidc-client
-      post-logout-redirect-uri: http://127.0.0.1:8080/login
-    # 访问令牌有效期（同时作用于初始客户端与后续新建客户端）
+    # 新建客户端的访问令牌有效期（管理台注册客户端时统一采用）
     access-token-time-to-live: ${ACCESS_TOKEN_TTL:30m}
 
 # TODO： Spring Security 自带保存上次请求路径，需要修改默认的登录成功处理器，将请求路径保存到 session 中

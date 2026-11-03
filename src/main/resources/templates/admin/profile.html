@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('账号')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('profile')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">账号</h1>
+				<p class="page-desc">修改自己的用户名或密码。保存后会自动退出，需要用新凭据重新登录。</p>
+			</div>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div class="card-head">
+				<span class="card-title">当前登录</span>
+				<span class="badge badge-ok" th:text="${currentUsername}">admin</span>
+			</div>
+			<div class="card-body">
+				<form class="form" th:action="@{/admin/profile}" method="post">
+
+					<div class="field">
+						<label class="field-label" for="username">新用户名</label>
+						<input class="input" id="username" name="username" type="text" autocomplete="username"
+							th:placeholder="${currentUsername}" />
+						<p class="field-hint">留空表示不修改。改名后需要用新用户名登录。</p>
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="password">新密码</label>
+						<input class="input" id="password" name="password" type="password"
+							autocomplete="new-password" placeholder="留空表示不修改" />
+					</div>
+
+					<div class="field">
+						<label class="field-label" for="confirmPassword">确认新密码</label>
+						<input class="input" id="confirmPassword" name="confirmPassword" type="password"
+							autocomplete="new-password" placeholder="再输入一次" />
+					</div>
+
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">保存并退出</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">安全提示</span></div>
+			<div class="card-body">
+				<p class="field-hint" style="margin-top: 0">
+					改密后本次登录会话与已接入的子系统的登录状态会一并失效，这是预期行为：
+					旧凭据对应的令牌不应继续有效。
+				</p>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证 · 管理台</footer>
+</body>
+
+</html>

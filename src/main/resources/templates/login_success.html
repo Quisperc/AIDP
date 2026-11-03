@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head>
 	<meta charset="UTF-8">
@@ -45,6 +46,11 @@
 				</svg>
 				idp.civer.cn
 			</div>
+
+			<a sec:authorize="hasAuthority('ROLE_ADMIN')" class="btn-primary"
+				th:href="@{/admin/users}" style="display:block;text-align:center;text-decoration:none;line-height:44px">
+				进入管理台
+			</a>
 
 			<form th:action="@{/logout}" method="post" style="margin-top: var(--sp-6)">
 				<button type="submit" class="btn-logout btn-block">退出登录</button>
