@@ -35,6 +35,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Configuration
+// jwkSource 会查 oauth2_signing_key，必须等 Flyway 把表建好。
+// Spring Boot 4 已无 FlywayAutoConfiguration，迁移由 FlywayConfig 显式接管，
+// 这里的依赖顺序需要自己声明。
+@org.springframework.context.annotation.DependsOn("flyway")
 public class TokenConfig {
 
 	private static final Logger log = LoggerFactory.getLogger(TokenConfig.class);

@@ -22,14 +22,16 @@ public interface ClientServiceClient {
 	@GetExchange("/clients/{clientId}")
 	ClientSummaryDto getClient(@PathVariable("clientId") String clientId);
 
+	// 认证中心这几个接口成功时无响应体（200 空 body），失败则以 HTTP 状态码表达，
+	// 由调用方捕获 RestClientResponseException 转成中文提示。
 	@PostExchange("/clients")
-	String registerClient(@RequestBody ClientDto dto);
+	void registerClient(@RequestBody ClientDto dto);
 
 	@PutExchange("/clients/{clientId}")
-	String updateClient(@PathVariable("clientId") String clientId, @RequestBody ClientDto dto);
+	void updateClient(@PathVariable("clientId") String clientId, @RequestBody ClientDto dto);
 
 	@DeleteExchange("/clients/{clientId}")
-	String deleteClient(@PathVariable("clientId") String clientId);
+	void deleteClient(@PathVariable("clientId") String clientId);
 
 	class ClientDto {
 		public String clientId;
