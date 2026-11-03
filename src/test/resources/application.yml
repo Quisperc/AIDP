@@ -1,0 +1,36 @@
+# 集成测试专用配置：使用 H2 内存库，不依赖外部 PostgreSQL。
+# 注意 MODE=PostgreSQL —— 主库的 schema.sql 是 PostgreSQL 语法。
+spring:
+  datasource:
+    url: jdbc:h2:mem:aidp-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: ${app.base-url}
+
+server:
+  port: 0
+
+app:
+  base-url: http://localhost:8080
+  auth:
+    initial-client:
+      client-id: test-client
+      client-secret: test-secret
+      redirect-uris: http://localhost:8081/login/oauth2/code/oidc-client
+      post-logout-redirect-uri: http://localhost:8080/login
+
+logging:
+  level:
+    org.springframework.security: INFO
