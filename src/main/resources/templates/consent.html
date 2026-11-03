@@ -1,71 +1,74 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
 <head>
-	<meta charset="utf-8">
+	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Consent Required</title>
+	<meta name="color-scheme" content="light dark">
+	<title>授权确认 · AIDP 统一身份认证</title>
 	<link rel="stylesheet" th:href="@{/css/hig.css}">
 </head>
 
 <body>
-	<div class="page-main">
-	<div class="consent-container">
-		<div class="consent-card">
-			<div class="consent-header">
-				<div class="consent-icon">
-					<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path
-							d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
-					</svg>
-				</div>
-				<h1>Authorization Required</h1>
+	<main class="page-main">
+		<div class="auth-card">
+			<div class="auth-brand">
+				<span class="brand-mark" aria-hidden="true">A</span>
+				<span class="brand-name">AIDP</span>
+				<span class="brand-divider" aria-hidden="true"></span>
+				<span>统一身份认证</span>
 			</div>
 
-			<div class="user-info">
-				<p>Signed in as <strong><span th:text="${principalName}"></span></strong></p>
-				<p>Application <strong><span th:text="${clientName}"></span></strong></p>
-			</div>
-
-			<p class="permission-text">
-				This application is requesting access to the following permissions:
+			<h1 class="auth-title">授权确认</h1>
+			<p class="auth-sub">
+				「<strong th:text="${clientName}">客户端名称</strong>」请求访问你的账号，请确认授予以下权限。
 			</p>
+
+			<div class="identity-row">
+				<span class="identity-label">当前登录</span>
+				<span class="identity-value" th:text="${principalName}">username</span>
+			</div>
 
 			<form method="post" action="/oauth2/authorize">
 				<input type="hidden" name="client_id" th:value="${clientId}">
 				<input type="hidden" name="state" th:value="${state}">
 
+				<p class="section-label">该应用将获得</p>
 				<ul class="scope-list">
 					<li class="scope-item" th:each="scope : ${scopes}">
-						<input type="checkbox" name="scope" th:value="${scope}" th:id="${scope}" checked>
-						<label th:for="${scope}" th:text="${scope}"></label>
+						<!-- 整行用 <label> 包裹：浏览器原生行为即可切换复选框，
+						     无需脚本，键盘 Tab + 空格也能操作，且不会出现
+						     「脚本与 label 各切换一次互相抵消」的问题。 -->
+						<label class="scope-row">
+							<input type="checkbox" name="scope" th:value="${scope}" th:id="${scope}" checked>
+							<span class="scope-body">
+								<span class="scope-name" th:switch="${scope}">
+									<span th:case="'openid'">确认你的身份</span>
+									<span th:case="'profile'">读取你的基本资料</span>
+									<span th:case="'email'">读取你的邮箱地址</span>
+									<span th:case="'offline_access'">在你离线时保持登录状态</span>
+									<span th:case="*" th:text="${scope}">scope</span>
+								</span>
+								<span class="scope-code" th:text="${scope}">scope</span>
+							</span>
+						</label>
 					</li>
 				</ul>
+				<p class="scope-hint">取消勾选某项权限，可能导致该应用无法正常登录。授权后可在该应用内或联系管理员撤销。</p>
 
 				<div class="btn-group">
-					<button type="button" class="btn-cancel" onclick="cancelConsent()">Cancel</button>
-					<button type="submit" class="btn-submit" id="submit-consent">Authorize</button>
+					<button type="button" class="btn-secondary" onclick="cancelConsent()">拒绝</button>
+					<button type="submit" class="btn-primary" id="submit-consent">允许授权</button>
 				</div>
 			</form>
 		</div>
-	</div>
-	</div>
+	</main>
 	<div th:replace="~{fragments/footer :: footer}"></div>
 
 	<script>
 		function cancelConsent() {
 			window.history.back();
 		}
-
-		// Click on scope item to toggle checkbox
-		document.querySelectorAll('.scope-item').forEach(item => {
-			item.addEventListener('click', (e) => {
-				if (e.target.tagName !== 'INPUT') {
-					const checkbox = item.querySelector('input[type="checkbox"]');
-					checkbox.checked = !checkbox.checked;
-				}
-			});
-		});
 	</script>
 </body>
 

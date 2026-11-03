@@ -1,75 +1,68 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Welcome to Auth Server</title>
+	<meta name="color-scheme" content="light dark">
+	<title>AIDP 统一身份认证</title>
 	<link rel="stylesheet" th:href="@{/css/hig.css}">
 </head>
 
 <body>
-	<div class="page-main">
-	<div class="bg-animation">
-		<div class="bg-circle"></div>
-		<div class="bg-circle"></div>
-		<div class="bg-circle"></div>
-	</div>
-
-	<div class="welcome-container">
-		<div class="logo-container">
-			<div class="logo">
-				<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-					<path
-						d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
-				</svg>
+	<main class="page-main">
+		<div class="welcome-container auth-card">
+			<div class="auth-brand">
+				<span class="brand-mark" aria-hidden="true">A</span>
+				<span class="brand-name">AIDP</span>
+				<span class="brand-divider" aria-hidden="true"></span>
+				<span>统一身份认证</span>
 			</div>
-			<h1>Auth Server</h1>
-			<p class="subtitle">
-				Secure OAuth2 Authentication Services<br>
-				for your enterprise applications
+
+			<h1 class="auth-title">一次登录，访问所有内部系统</h1>
+			<p class="auth-sub">
+				这里是 AIDP 的认证中心。登录后，你不再需要为每个子系统单独输入密码。
 			</p>
-		</div>
 
-		<a href="/login" class="btn-login">
-			<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-				<path
-					d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z" />
-			</svg>
-			Sign In
-		</a>
+			<a href="/login" class="btn-primary btn-login btn-block">前往登录</a>
 
-		<div class="features">
-			<div class="feature">
-				<div class="feature-icon">
-					<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path
-							d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-					</svg>
-				</div>
-				<span>Secure</span>
-			</div>
-			<div class="feature">
-				<div class="feature-icon">
-					<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path
-							d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-					</svg>
-				</div>
-				<span>OAuth2</span>
-			</div>
-			<div class="feature">
-				<div class="feature-icon">
-					<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path
-							d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-					</svg>
-				</div>
-				<span>Enterprise</span>
-			</div>
+			<ul class="features">
+				<li class="feature">
+					<span class="feature-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24">
+							<path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-9H9V6a3 3 0 0 1 6 0v2z" />
+						</svg>
+					</span>
+					<span class="feature-text">
+						<span class="feature-title">单点登录</span>
+						<span>登录一次，所有已接入的子系统共享同一会话。</span>
+					</span>
+				</li>
+				<li class="feature">
+					<span class="feature-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24">
+							<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 15-4-4 1.4-1.4L11 14.2l6.6-6.6L19 9l-8 8z" />
+						</svg>
+					</span>
+					<span class="feature-text">
+						<span class="feature-title">标准协议</span>
+						<span>基于 OIDC / OAuth2，现成 SDK 可直接对接。</span>
+					</span>
+				</li>
+				<li class="feature">
+					<span class="feature-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24">
+							<path d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5l-9-4z" />
+						</svg>
+					</span>
+					<span class="feature-text">
+						<span class="feature-title">统一退出</span>
+						<span>注销一次，全部子系统同时下线，凭据不会残留。</span>
+					</span>
+				</li>
+			</ul>
 		</div>
-	</div>
-	</div>
+	</main>
 	<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 

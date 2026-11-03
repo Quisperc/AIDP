@@ -32,14 +32,30 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 <template>
   <div class="modal-backdrop" @click.self="!busy && emit('close')">
     <div ref="panel" class="modal" role="dialog" aria-modal="true" :aria-label="title">
-      <div class="modal-header">{{ title }}</div>
+      <div class="modal-head">
+        <h2 class="modal-header">{{ title }}</h2>
+        <button
+          class="icon-btn"
+          type="button"
+          aria-label="关闭"
+          :disabled="busy"
+          @click="emit('close')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
       <div class="modal-body">
         <slot />
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" :disabled="busy" @click="emit('close')">取消</button>
+        <button class="btn btn-secondary" type="button" :disabled="busy" @click="emit('close')">
+          取消
+        </button>
         <button
           class="btn"
+          type="button"
           :class="destructive ? 'btn-destructive' : 'btn-primary'"
           :disabled="busy"
           @click="emit('confirm')"
@@ -50,3 +66,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
     </div>
   </div>
 </template>
+
+<style scoped>
+/* .modal-head 的布局在 components.css 里定义（与站点样式同源），这里不再重复 */
+</style>

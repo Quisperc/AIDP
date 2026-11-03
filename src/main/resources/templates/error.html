@@ -1,29 +1,44 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>出错了</title>
+	<meta name="color-scheme" content="light dark">
+	<title>出错了 · AIDP 统一身份认证</title>
 	<link rel="stylesheet" th:href="@{/css/hig.css}">
 </head>
+
 <body>
-	<div class="page-main">
-	<div class="error-container">
-		<div class="error-card">
-			<div class="error-icon">
-				<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+	<main class="page-main">
+		<div class="error-container auth-card">
+			<div class="auth-brand">
+				<span class="brand-mark" aria-hidden="true">A</span>
+				<span class="brand-name">AIDP</span>
+				<span class="brand-divider" aria-hidden="true"></span>
+				<span>统一身份认证</span>
 			</div>
-			<h1>出错了</h1>
-			<div class="status-badge" th:text="${status} + ' ' + ${statusText}">400 Bad Request</div>
+
+			<div class="error-icon" aria-hidden="true">
+				<svg viewBox="0 0 24 24">
+					<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+				</svg>
+			</div>
+
+			<h1 class="auth-title">出错了</h1>
+			<div class="status-badge">
+				<span th:text="${status} + ' ' + ${statusText}">400 Bad Request</span>
+			</div>
 			<p class="message" th:text="${message}">该客户端未在认证中心注册或已失效，请联系系统管理员在认证中心重新配置后再试。</p>
+
 			<div class="actions">
-				<a th:if="${backUrl}" th:href="${backUrl}" class="btn btn-back">返回</a>
-				<button th:unless="${backUrl}" type="button" class="btn btn-back" onclick="history.back()">返回</button>
-				<a th:href="@{/login}" class="btn btn-login">前往SSO登录</a>
+				<a th:if="${backUrl}" th:href="${backUrl}" class="btn-secondary">返回</a>
+				<button th:unless="${backUrl}" type="button" class="btn-secondary" onclick="history.back()">返回</button>
+				<a th:href="@{/login}" class="btn-primary">前往 SSO 登录</a>
 			</div>
 		</div>
-	</div>
-	</div>
+	</main>
 	<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
+
 </html>

@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "AIDP 管理后台前端（Apple HIG 设计语言）",
+  "description": "AIDP 管理后台前端（凭证式设计语言）",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build && node scripts/postbuild.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "vue": "^3.5.13",

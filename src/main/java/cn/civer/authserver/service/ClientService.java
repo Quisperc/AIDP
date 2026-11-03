@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * 客户端（RegisteredClient）业务逻辑。
@@ -34,9 +35,15 @@ import java.util.UUID;
 public class ClientService {
 
 	private static final Logger log = LoggerFactory.getLogger(ClientService.class);
+	/**
+	 * 列表投影。client_settings 是一段 JSON，里面存着 PKCE 等客户端级设置——
+	 * 之前没取这一列，列表里 requirePkce 恒为 false，前端只能写「需查看详情」。
+	 */
 	private static final String LIST_SQL =
-			"SELECT id, client_id, client_name, redirect_uris, post_logout_redirect_uris "
+			"SELECT id, client_id, client_name, redirect_uris, post_logout_redirect_uris, client_settings "
 					+ "FROM oauth2_registered_client ORDER BY client_id";
+	/** 匹配 Spring 序列化出来的 "settings.client.require-proof-key":true（容忍空白） */
+	private static final Pattern REQUIRE_PKCE = Pattern.compile("require-proof-key\"\\s*:\\s*true");
 
 	private final RegisteredClientRepository registeredClientRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -57,13 +64,16 @@ public class ClientService {
 	}
 
 	public List<ClientSummaryDto> listClients() {
-		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> new ClientSummaryDto(
-				rs.getString("id"),
-				rs.getString("client_id"),
-				rs.getString("client_name"),
-				rs.getString("redirect_uris"),
-				rs.getString("post_logout_redirect_uris"),
-				false));
+		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> {
+			String settings = rs.getString("client_settings");
+			return new ClientSummaryDto(
+					rs.getString("id"),
+					rs.getString("client_id"),
+					rs.getString("client_name"),
+					rs.getString("redirect_uris"),
+					rs.getString("post_logout_redirect_uris"),
+					settings != null && REQUIRE_PKCE.matcher(settings).find());
+		});
 	}
 
 	public ClientSummaryDto getClient(String clientId) {
