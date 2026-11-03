@@ -129,7 +129,7 @@ public class UserAdminService {
 	/**
 	 * 修改当前登录者自己的账号。
 	 *
-	 * 改完由调用方跳全局退出（/oauth2/logout-all），把旧会话与各子系统一起清掉，
+	 * 改完由调用方立即吊销令牌并清会话（{@link SsoLogoutService#performGlobalLogout}），
 	 * 否则旧用户名在其它系统的会话里仍然有效。
 	 */
 	@Transactional

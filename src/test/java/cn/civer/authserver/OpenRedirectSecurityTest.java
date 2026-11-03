@@ -21,17 +21,21 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 
 /**
  * 开放重定向回归测试。
  *
- * /oauth2/revoke-consent 的 redirect_uri 直接取自请求参数。若不做校验，攻击者可构造
- * /oauth2/revoke-consent?redirect_uri=https://evil.com —— 跳转来源仍是本站域名，
- * 可信度极高，是典型的钓鱼手法。
- * 修复后仅允许：站内相对路径，或已注册客户端 redirect_uris 所在 host 的绝对 URL。
+ * 登出后回跳的 redirect_uri 直接取自请求参数（POST /logout）。若不做校验，攻击者可构造
+ * /logout?redirect_uri=https://evil.com —— 跳转来源仍是本站域名，可信度极高，
+ * 是典型的钓鱼手法。校验规则：只允许已注册客户端 redirect_uris 所在 host 的绝对 URL。
+ *
+ * （早期还有一个自研的 /oauth2/revoke-consent 端点使用同样的校验；该端点已删除，
+ *   现在只保留标准端点，因此这里改为覆盖 /logout。）
  */
 @ActiveProfiles("test")
 @SpringBootTest
@@ -72,42 +76,21 @@ class OpenRedirectSecurityTest {
     }
 
     @Test
-    @DisplayName("外站绝对 URL 必须被拦截")
-    @WithMockUser(username = "user", authorities = {"ROLE_USER", "SCOPE_openid"})
-    void externalUrlIsBlocked() throws Exception {
-        mockMvc.perform(get("/oauth2/revoke-consent")
-                        .param("client_id", "test-client")
-                        .param("redirect_uri", "https://evil.com/steal"))
-                .andExpect(redirectedUrl("/"));
+    @DisplayName("登出回跳：外站地址被拦截，回到默认登录页")
+    @WithMockUser(username = "user", authorities = {"ROLE_USER"})
+    void logoutRejectsExternalRedirect() throws Exception {
+        for (String unsafe : new String[]{"https://evil.com/steal", "//evil.com/steal"}) {
+            mockMvc.perform(post("/logout").with(csrf()).param("redirect_uri", unsafe))
+                    .andExpect(redirectedUrl("/login?logout"));
+        }
     }
 
     @Test
-    @DisplayName("协议相对 URL（//evil.com）必须被拦截")
-    @WithMockUser(username = "user", authorities = {"ROLE_USER", "SCOPE_openid"})
-    void protocolRelativeUrlIsBlocked() throws Exception {
-        mockMvc.perform(get("/oauth2/revoke-consent")
-                        .param("client_id", "test-client")
-                        .param("redirect_uri", "//evil.com/steal"))
-                .andExpect(redirectedUrl("/"));
-    }
-
-    @Test
-    @DisplayName("站内相对路径应放行")
-    @WithMockUser(username = "user", authorities = {"ROLE_USER", "SCOPE_openid"})
-    void internalRelativePathIsAllowed() throws Exception {
-        mockMvc.perform(get("/oauth2/revoke-consent")
-                        .param("client_id", "test-client")
-                        .param("redirect_uri", "/login"))
-                .andExpect(redirectedUrl("/login"));
-    }
-
-    @Test
-    @DisplayName("已注册客户端所在 host 的绝对 URL 应放行")
-    @WithMockUser(username = "user", authorities = {"ROLE_USER", "SCOPE_openid"})
-    void registeredClientHostIsAllowed() throws Exception {
+    @DisplayName("登出回跳：已注册客户端所在 host 的地址放行")
+    @WithMockUser(username = "user", authorities = {"ROLE_USER"})
+    void logoutAllowsRegisteredClientHost() throws Exception {
         // test-client 的 redirect-uris 为 http://localhost:8081/...，故 localhost 在白名单内
-        mockMvc.perform(get("/oauth2/revoke-consent")
-                        .param("client_id", "test-client")
+        mockMvc.perform(post("/logout").with(csrf())
                         .param("redirect_uri", "http://localhost:8081/home"))
                 .andExpect(redirectedUrl("http://localhost:8081/home"));
     }
