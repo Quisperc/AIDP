@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * DTO 字段名写错、fragment 参数不匹配之类的问题会在这里直接暴露，
  * 不必等到部署后打开浏览器才发现。
  */
+@ActiveProfiles("test")
 @SpringBootTest
 class AdminAuthorizationTest {
 
@@ -72,13 +74,19 @@ class AdminAuthorizationTest {
 	}
 
 	@Test
+	@Transactional
 	@DisplayName("管理员可以打开用户管理页并看到列表结构")
 	@WithMockUser(username = "admin", authorities = {"ROLE_ADMIN"})
 	void adminSeesUserList() throws Exception {
+		// 自造一行数据：空表时页面只渲染空状态，表头根本不存在。
+		// 这里原本依赖启动时预置的演示账号，一旦关闭 seed-demo-users 用例就会假失败。
+		userRepository.save(new User("listed-user", "{bcrypt}placeholder", "ROLE_USER"));
+
 		mockMvc.perform(get("/admin/users"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("新增用户")))
-				.andExpect(content().string(containsString("用户名")));
+				.andExpect(content().string(containsString("用户名")))
+				.andExpect(content().string(containsString("listed-user")));
 	}
 
 	@Test

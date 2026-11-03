@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import cn.civer.authserver.service.SsoLogoutService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -32,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 可信度极高，是典型的钓鱼手法。
  * 修复后仅允许：站内相对路径，或已注册客户端 redirect_uris 所在 host 的绝对 URL。
  */
+@ActiveProfiles("test")
 @SpringBootTest
 class OpenRedirectSecurityTest {
 

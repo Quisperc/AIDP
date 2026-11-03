@@ -10,7 +10,7 @@ import lombok.Setter;
  * 注意：这里刻意不用 lombok 的 @Data。
  * @Data 会生成包含 password 的 toString()，任何一处 log.info("user={}", user)
  * 都会把密码哈希写进日志；它生成的 equals/hashCode 覆盖全部字段，也不适合 JPA 实体。
- * 对外响应一律使用 {@link cn.civer.authserver.controller.UserResponse}（不含 password）。
+ * 对外响应一律使用 {@link cn.civer.authserver.dto.UserResponse}（不含 password）。
  */
 @Entity
 @Table(name = "users")

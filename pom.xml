@@ -23,10 +23,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
         </dependency>
-        <!-- Resource Server: To protect API endpoints -->
+        <!-- JOSE：签发 logout_token 需要 JwtEncoder / JwsHeader / JwtClaimsSet。
+             管理端并入本应用后，进程内不再有受保护的 /api/**，因此不需要
+             oauth2-resource-server 那份自动配置，只要 JOSE 本身。 -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
         <!-- Security -->
         <dependency>

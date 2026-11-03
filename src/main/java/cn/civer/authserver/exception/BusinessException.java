@@ -3,10 +3,14 @@ package cn.civer.authserver.exception;
 import org.springframework.http.HttpStatus;
 
 /**
- * 业务异常：Service 层抛出，由 GlobalExceptionHandler 统一映射为 HTTP 状态码。
+ * 业务异常：Service 层抛出，用来表达「规则不满足」，不关心 HTTP。
  *
- * 目的是让 Controller 不再散落 ResponseEntity.badRequest() / notFound() 之类的
- * 分支，业务规则集中到 Service，异常到响应的映射集中到一处。
+ * 当前的管理台是服务端渲染的 PRG 流程，Controller 捕获它、把 message 放进 flash
+ * 再 302 回列表页（管理员填错一个用户名不该被整页错误打断），所以这里的 status
+ * 只作为语义标注，不直接出现在响应里。
+ *
+ * 如果将来新增 JSON 接口，再补一个 @RestControllerAdvice 按 status 映射即可：
+ * 约定已经在这个类型上，不必改动 Service。
  */
 public class BusinessException extends RuntimeException {
 

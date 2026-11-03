@@ -1,6 +1,7 @@
 package cn.civer.authserver;
 
 import cn.civer.authserver.config.TokenConfig;
+import cn.civer.authserver.security.SigningKeyStore;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKMatcher;
 import com.nimbusds.jose.jwk.JWKSelector;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
@@ -27,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * 这里用「新建一个 TokenConfig 实例」来模拟重启：它连的是同一个数据库，
  * 若密钥确实落库，取到的 kid 应与重启前一致。
  */
+@ActiveProfiles("test")
 @SpringBootTest
 class SigningKeyPersistenceTest {
 
@@ -41,8 +44,8 @@ class SigningKeyPersistenceTest {
     void keyIsReusedAfterRestart() throws Exception {
         String kidBefore = firstKeyId(jwkSource);
 
-        // 模拟重启：新的配置实例，同一份数据库
-        TokenConfig restarted = new TokenConfig(jdbcTemplate, "primary");
+        // 模拟重启：新的装配实例，同一份数据库
+        TokenConfig restarted = new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary"));
         String kidAfter = firstKeyId(restarted.jwkSource());
 
         assertEquals(kidBefore, kidAfter,
@@ -64,8 +67,8 @@ class SigningKeyPersistenceTest {
     @Test
     @DisplayName("重复启动不会产生多条密钥记录")
     void repeatedStartupDoesNotDuplicateKeys() {
-        new TokenConfig(jdbcTemplate, "primary").jwkSource();
-        new TokenConfig(jdbcTemplate, "primary").jwkSource();
+        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary")).jwkSource();
+        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary")).jwkSource();
 
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM oauth2_signing_key WHERE id = ?", Integer.class, "primary");

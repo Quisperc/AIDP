@@ -48,9 +48,14 @@ spring:
     url: jdbc:postgresql://localhost:5432/authdb
     username: <user>
     password: <password>
+
+# 本地才开：空库时写入演示账号 admin / password
+app:
+  bootstrap:
+    seed-demo-users: true
 YAML
 
-# 3. 启动（Flyway 自动建表，并创建演示账号 admin / user）
+# 3. 启动（Flyway 自动建表）
 mvn spring-boot:run
 ```
 
@@ -59,10 +64,11 @@ mvn spring-boot:run
 测试：
 
 ```bash
-mvn test      # 20 个用例：越权、开放重定向、密码不外泄、密钥持久化、模板渲染
+mvn test      # 27 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、客户端字段归一化、模板渲染
 ```
 
-演示账号由 `app.bootstrap.seed-demo-users` 控制，生产必须关掉并自行初始化账号。
+演示账号由 `app.bootstrap.seed-demo-users` 控制，**默认关闭**（漏配环境变量时宁可没人能登录，
+也不要带着 `admin/password` 上线）。生产请自行初始化账号。
 
 ---
 
@@ -70,10 +76,12 @@ mvn test      # 20 个用例：越权、开放重定向、密码不外泄、密�
 
 ```
 ├── src/main/java/cn/civer/authserver/
-│   ├── config/       安全链、令牌与签名密钥、Flyway、缓存、启动初始化
+│   ├── config/       安全链（SecurityConfig）、OIDC 存储、令牌装配、Flyway、缓存、启动初始化
+│   ├── security/     签名密钥的持久化读写（SigningKeyStore）
 │   ├── controller/   OIDC 端点 + 管理台（AdminUser / AdminClient / AdminProfile）+ 同意页
-│   ├── service/      用户、客户端、全局登出
-│   ├── dto/ entity/ repository/
+│   ├── service/      用户、客户端、全局登出与 Back-Channel 推送
+│   ├── repository/   用户 JPA 仓储 + 客户端列表投影
+│   └── dto/ entity/ exception/ handler/
 ├── src/main/resources/
 │   ├── db/migration/ Flyway 迁移（V1：OAuth2 三表 + 签名密钥 + users + 索引）
 │   ├── templates/    认证页 + admin/（管理台三页）+ fragments/
@@ -90,7 +98,8 @@ mvn test      # 20 个用例：越权、开放重定向、密码不外泄、密�
 | 文档 | 什么时候看 |
 |---|---|
 | [`docs/架构说明.md`](docs/架构说明.md) | 想搞懂链路、多实例、为什么管理台不单独部署 |
-| [`docs/接入规范.md`](docs/接入规范.md) | 要把一个新系统接进 SSO |
+| [`docs/外部系统接入.md`](docs/外部系统接入.md) | **非本仓库的系统**要接进来：怎么取 issuer / discovery / JWKS，任意语言的最小流程 |
+| [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含 Back-Channel Logout 接收端示例） |
 | [`docs/部署与运维.md`](docs/部署与运维.md) | 要发版、改配置、排障、回滚 |
 | [`docs/故障复盘.md`](docs/故障复盘.md) | 遇到 500/403/登出异常，先查这里 |
 | [`deploy/README.md`](deploy/README.md) | 换服务器 / 重装时要核对的前提 |

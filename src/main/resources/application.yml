@@ -1,8 +1,14 @@
 server:
-  port: 8080 # 服务端口：Auth Server 运行在 8080#
-  #建议同时开启这个，让 Spring 能够识别代理传来的 Header
+  port: 8080
+  # 让 Spring 识别代理（Nginx / 1Panel 反代）传来的 X-Forwarded-*，否则 issuer 与跳转地址会带内网地址
   forward-headers-strategy: native
   servlet:
+    # 响应头显式带 charset=UTF-8：页面虽有 <meta charset>，但缺 header 时
+    # 代理/浏览器仍可能按 ISO-8859-1 猜，中文会变乱码；也避免日志里抓到的
+    # 响应体出现同样问题。force=true 让编码过滤器同时作用于请求与响应。
+    encoding:
+      charset: UTF-8
+      force: true
     session:
       cookie:
         # 自定义名称，避免与子系统的会话 cookie 撞名
@@ -17,11 +23,8 @@ server:
 
 spring:
   config:
+    # 敏感配置（数据库口令等）放在同目录的 application-secret.yml，已 gitignore
     import: optional:file:./application-secret.yml
-#spring:
-#  config:
-#    import:
-#      - "optional:file:application-secret.yml"
   application:
     name: auth-server
   datasource:
@@ -35,7 +38,9 @@ spring:
       mode: never
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
-    # 对已有库自动打基线并跳过早期迁移，避免与历史表结构冲突
+    # 对已有库自动打基线并跳过早期迁移，避免与历史表结构冲突。
+    # 这几项由 FlywayConfig 读取后显式传给 Flyway —— Spring Boot 4 不再提供
+    # FlywayAutoConfiguration，写在 yml 里不会被自动应用，必须由代码读走。
     baseline-on-migrate: true
     baseline-version: 0
     locations: classpath:db/migration
@@ -94,9 +99,10 @@ management:
       enabled: true
 
 app:
-  # 认证中心对外 issuer（tidp 部署时须为 https://tidp.civer.cn），与各客户端 issuer-uri 一致，否则 backchannel logout 验签失败
+  # 认证中心对外 issuer（生产须为 https://idp.civer.cn），必须与各子系统 issuer-uri 一致，
+  # 否则 Back-Channel Logout 的 logout_token 验签失败（现象：全局登出时别的系统不退）
   base-url: ${APP_BASE_URL:http://127.0.0.1:8080}
-  # 底部备案信息（留空则不显示）
+  # 底部备案信息（留空则不显示）。字段定义见 config/FooterProperties
   footer:
     icp: "渝ICP备2026020534号" # 例如：京ICP备xxxxxxxx号
     icp-url: "https://beian.miit.gov.cn/"
@@ -109,5 +115,20 @@ app:
     # 新建客户端的访问令牌有效期（管理台注册客户端时统一采用）
     access-token-time-to-live: ${ACCESS_TOKEN_TTL:30m}
 
-# TODO： Spring Security 自带保存上次请求路径，需要修改默认的登录成功处理器，将请求路径保存到 session 中
-# 登录成功后，若保存的请求是 /error（或 /error?*），则改为重定向到 /，避免出现“登录成功却跳到错误页”的现象。
+  signing-key:
+    # 签名密钥在 oauth2_signing_key 表中的主键。同一套库要跑两套互不干扰的环境时，
+    # 才需要换 record-id；正常情况下保持 primary，改它等于换密钥（已签发令牌全部失效）
+    record-id: ${SIGNING_KEY_RECORD_ID:primary}
+
+  sso:
+    # 各子系统接收 logout_token 的固定路径。改这里必须同步改所有子系统，
+    # 且该端点需与注册的回调同域同端口（推送地址取 redirect_uri 的 origin）
+    client-logout-path: ${SSO_CLIENT_LOGOUT_PATH:/api/sso-logout}
+
+  bootstrap:
+    # 空库时是否写入演示账号 admin / user。
+    # 默认关闭：漏配环境变量的代价是「没人能登录」（立刻发现），
+    # 而默认开启的代价是「带着 admin/password 上线」（没人会发现）。
+    # 本地开发在 application-secret.yml 里设成 true 即可。
+    seed-demo-users: ${APP_BOOTSTRAP_SEED_DEMO_USERS:false}
+    demo-user-password: ${APP_BOOTSTRAP_DEMO_USER_PASSWORD:password}

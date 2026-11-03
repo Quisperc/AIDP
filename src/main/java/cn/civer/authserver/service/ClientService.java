@@ -3,12 +3,10 @@ package cn.civer.authserver.service;
 import cn.civer.authserver.dto.ClientDto;
 import cn.civer.authserver.dto.ClientSummaryDto;
 import cn.civer.authserver.exception.BusinessException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import cn.civer.authserver.repository.ClientQueryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -22,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -33,88 +31,34 @@ import java.util.UUID;
  * 原先这些逻辑全在 RegisteredClientController 里：拼接 RegisteredClient.Builder、
  * 手写多条 DELETE、直接查 oauth2_registered_client 表。Controller 因此既管协议又管业务，
  * 加任何规则都只能继续往里堆。这里把它们收拢，Controller 只负责校验入参与组装响应。
+ *
+ * 列表投影与级联删除下沉到 {@link ClientQueryRepository}，本类只表达业务规则。
  */
 @Service
 public class ClientService {
 
 	private static final Logger log = LoggerFactory.getLogger(ClientService.class);
-	/**
-	 * 列表投影。client_settings 是一段 JSON，里面存着 PKCE 等客户端级设置——
-	 * 之前没取这一列，列表里 requirePkce 恒为 false，前端只能写「需查看详情」。
-	 */
-	private static final String LIST_SQL =
-			"SELECT id, client_id, client_name, redirect_uris, post_logout_redirect_uris, client_settings "
-					+ "FROM oauth2_registered_client ORDER BY client_id";
-	/** client_settings 里 PKCE 开关的键名（Spring Authorization Server 的序列化约定） */
-	private static final String REQUIRE_PROOF_KEY = "settings.client.require-proof-key";
 
 	private final RegisteredClientRepository registeredClientRepository;
+	private final ClientQueryRepository clientQueryRepository;
 	private final PasswordEncoder passwordEncoder;
-	private final JdbcTemplate jdbcTemplate;
 	private final SsoLogoutService ssoLogoutService;
-	private final ObjectMapper objectMapper;
 	private final Duration accessTokenTtl;
 
 	public ClientService(RegisteredClientRepository registeredClientRepository,
+			ClientQueryRepository clientQueryRepository,
 			PasswordEncoder passwordEncoder,
-			JdbcTemplate jdbcTemplate,
 			SsoLogoutService ssoLogoutService,
-			ObjectMapper objectMapper,
 			@Value("${app.auth.access-token-time-to-live:30m}") Duration accessTokenTtl) {
 		this.registeredClientRepository = registeredClientRepository;
+		this.clientQueryRepository = clientQueryRepository;
 		this.passwordEncoder = passwordEncoder;
-		this.jdbcTemplate = jdbcTemplate;
 		this.ssoLogoutService = ssoLogoutService;
-		this.objectMapper = objectMapper;
 		this.accessTokenTtl = accessTokenTtl;
 	}
 
 	public List<ClientSummaryDto> listClients() {
-		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> new ClientSummaryDto(
-				rs.getString("id"),
-				rs.getString("client_id"),
-				rs.getString("client_name"),
-				// 库里 redirect_uris 是逗号分隔（JdbcRegisteredClientRepository 的存法），
-				// 详情接口返回的是换行分隔。同一个字段两种格式，前端按 \n 拆分时会漏掉
-				// 多 URI 客户端的「+n」提示，这里统一成换行。
-				toLineSeparated(rs.getString("redirect_uris")),
-				rs.getString("post_logout_redirect_uris"),
-				requireProofKey(rs.getString("client_settings"))));
-	}
-
-	/**
-	 * 从 client_settings 的 JSON 里读 PKCE 开关。
-	 *
-	 * 早期实现用正则匹配 "require-proof-key":true —— 对着 JSON 做正则，格式一变就静默出错，
-	 * 且拿不到「明确写了 false」与「压根没这个键」的区别。改为正常解析。
-	 *
-	 * 注意这里注入的是 Jackson 3（tools.jackson）的 ObjectMapper：
-	 * Spring Boot 4 已把默认 JSON 实现迁到 Jackson 3，com.fasterxml 的 ObjectMapper
-	 * 不在容器里，注入会直接启动失败。
-	 */
-	private boolean requireProofKey(String settingsJson) {
-		if (!StringUtils.hasText(settingsJson)) {
-			return false;
-		}
-		try {
-			Map<String, Object> settings = objectMapper.readValue(settingsJson,
-					new TypeReference<Map<String, Object>>() {
-					});
-			return Boolean.TRUE.equals(settings.get(REQUIRE_PROOF_KEY));
-		} catch (Exception e) {
-			log.warn("[clients] client_settings 解析失败，PKCE 按未开启处理: {}", e.getMessage());
-			return false;
-		}
-	}
-
-	private static String toLineSeparated(String raw) {
-		if (!StringUtils.hasText(raw)) {
-			return "";
-		}
-		return String.join("\n", Arrays.stream(raw.split(","))
-				.map(String::trim)
-				.filter(s -> !s.isEmpty())
-				.toList());
+		return clientQueryRepository.findAllSummaries();
 	}
 
 	public ClientSummaryDto getClient(String clientId) {
@@ -137,9 +81,19 @@ public class ClientService {
 		if (redirectUris.isEmpty()) {
 			throw BusinessException.badRequest("至少需要一个 redirect_uri。");
 		}
-		registeredClientRepository.save(buildClient(UUID.randomUUID().toString(), dto.clientId(),
-				dto.clientSecret(), dto.clientName(), redirectUris, dto.postLogoutRedirectUri(),
-				dto.requirePkce() != null ? dto.requirePkce() : true));
+
+		RegisteredClient.Builder builder = baseBuilder(UUID.randomUUID().toString(), dto.clientId(),
+				passwordEncoder.encode(dto.clientSecret()), displayName(dto))
+				.clientSettings(clientSettings(dto.requirePkce() == null || dto.requirePkce()))
+				.tokenSettings(tokenSettings());
+		redirectUris.forEach(builder::redirectUri);
+		// 留空就不写这一项。此前无条件调用 postLogoutRedirectUri(null)，
+		// 库里会落下一个字符串 "null"，编辑页把它回显出来，看起来像配了个垃圾地址。
+		if (StringUtils.hasText(dto.postLogoutRedirectUri())) {
+			builder.postLogoutRedirectUri(dto.postLogoutRedirectUri().trim());
+		}
+		registeredClientRepository.save(builder.build());
+
 		onClientChanged();
 		log.info("[clients] registered: clientId={}", dto.clientId());
 	}
@@ -155,6 +109,7 @@ public class ClientService {
 			if (existing.getRedirectUris() == null || existing.getRedirectUris().isEmpty()) {
 				throw BusinessException.badRequest("至少需要一个 redirect_uri。");
 			}
+			// 表单留空 = 沿用原值；不这样兜底会把客户端的回调地址清空
 			redirectUris = existing.getRedirectUris().stream().toList();
 		}
 		boolean pkce = dto.requirePkce() != null ? dto.requirePkce() : existing.getClientSettings().isRequireProofKey();
@@ -162,42 +117,32 @@ public class ClientService {
 				? passwordEncoder.encode(dto.clientSecret())
 				: existing.getClientSecret();
 		String name = StringUtils.hasText(dto.clientName()) ? dto.clientName() : existing.getClientName();
-		String postLogout = StringUtils.hasText(dto.postLogoutRedirectUri())
-				? dto.postLogoutRedirectUri()
-				: (existing.getPostLogoutRedirectUris().isEmpty()
-						? null
-						: existing.getPostLogoutRedirectUris().iterator().next());
 
-		RegisteredClient.Builder builder = RegisteredClient.withId(existing.getId())
-				.clientId(existing.getClientId())
-				.clientSecret(secret)
-				.clientName(name)
-				.clientAuthenticationMethods(c -> c.addAll(existing.getClientAuthenticationMethods()))
-				.authorizationGrantTypes(g -> g.addAll(existing.getAuthorizationGrantTypes()))
-				.scopes(s -> s.addAll(existing.getScopes()));
-		redirectUris.forEach(builder::redirectUri);
-		registeredClientRepository.save(builder
-				.postLogoutRedirectUri(postLogout != null ? postLogout : "")
+		RegisteredClient.Builder builder = baseBuilder(existing.getId(), existing.getClientId(), secret, name)
 				.clientSettings(clientSettings(pkce))
-				.tokenSettings(tokenSettings())
-				.build());
+				.tokenSettings(tokenSettings());
+		redirectUris.forEach(builder::redirectUri);
+		// 只有显式填写才覆盖；否则保留库里全部 post-logout URI。
+		// 早先只取 iterator().next() 再写回，多值客户端改一次名称就只剩一条，属于静默丢数据。
+		List<String> postLogoutUris = StringUtils.hasText(dto.postLogoutRedirectUri())
+				? List.of(dto.postLogoutRedirectUri().trim())
+				: new ArrayList<>(existing.getPostLogoutRedirectUris());
+		postLogoutUris.stream()
+				.filter(StringUtils::hasText)
+				.forEach(builder::postLogoutRedirectUri);
+
+		registeredClientRepository.save(builder.build());
 		onClientChanged();
 		log.info("[clients] updated: clientId={}", clientId);
 	}
 
-	/**
-	 * 授权、同意、客户端三张表必须一起清掉，否则会留下孤儿授权记录。
-	 */
 	@Transactional
 	public void delete(String clientId) {
 		RegisteredClient client = registeredClientRepository.findByClientId(clientId);
 		if (client == null) {
 			throw BusinessException.notFound("客户端不存在: " + clientId);
 		}
-		String id = client.getId();
-		jdbcTemplate.update("DELETE FROM oauth2_authorization WHERE registered_client_id = ?", id);
-		jdbcTemplate.update("DELETE FROM oauth2_authorization_consent WHERE registered_client_id = ?", id);
-		jdbcTemplate.update("DELETE FROM oauth2_registered_client WHERE id = ?", id);
+		clientQueryRepository.deleteCascade(client.getId());
 		onClientChanged();
 		log.info("[clients] deleted: clientId={}", clientId);
 	}
@@ -209,24 +154,27 @@ public class ClientService {
 		ssoLogoutService.invalidateHostCache();
 	}
 
-	private RegisteredClient buildClient(String id, String clientId, String clientSecret, String clientName,
-			List<String> redirectUris, String postLogoutRedirectUri, boolean requirePkce) {
-		RegisteredClient.Builder builder = RegisteredClient.withId(id)
+	/** 注册与更新共用的骨架：认证方式、授权类型、scope、有效期。 */
+	private RegisteredClient.Builder baseBuilder(String id, String clientId, String clientSecret, String clientName) {
+		return RegisteredClient.withId(id)
 				.clientId(clientId)
-				.clientSecret(passwordEncoder.encode(clientSecret))
+				.clientSecret(clientSecret)
 				.clientName(clientName)
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN);
-		redirectUris.forEach(builder::redirectUri);
-		return builder
-				.postLogoutRedirectUri(postLogoutRedirectUri)
+				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
 				.scope(OidcScopes.OPENID)
-				.scope(OidcScopes.PROFILE)
-				.clientSettings(clientSettings(requirePkce))
-				.tokenSettings(tokenSettings())
-				.build();
+				.scope(OidcScopes.PROFILE);
+	}
+
+	/**
+	 * 显示名称留空时退回 client_id。
+	 * 表上 client_name 是 NOT NULL，为空会在 insert 时抛异常变成 500；
+	 * 而这个字段在表单里本来就是可选的。
+	 */
+	private static String displayName(ClientDto dto) {
+		return StringUtils.hasText(dto.clientName()) ? dto.clientName().trim() : dto.clientId().trim();
 	}
 
 	private ClientSettings clientSettings(boolean requirePkce) {

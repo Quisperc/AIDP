@@ -40,15 +40,10 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 跨行变量会被替换成空串，曾导致空 URL 轮询 120 秒后误判失败。
 
 > 健康状态里包含 Redis 探针：`SESSION_STORE=redis` 但 Redis 连不上时，服务本身也基本不可用，
-> 此时发布判定失败是正确的。若某次确实要在无 Redis 的情况下发版，把
-> `AUTH_HEALTH_URL` 指到 `/actuator/health/liveness`（只判进程存活）。
+> 此时发布判定失败是正确的。
 
-端口变了不用改 `.cnb.yml`：在 CNB 的 `server-config.yml` 里覆盖
-
-```yaml
-env:
-  AUTH_HEALTH_URL: http://127.0.0.1:18090/actuator/health
-```
+> **端口改动要动两处**：`.cnb.yml` 的健康校验把 `http://127.0.0.1:18090/actuator/health`
+> 直接写在 curl 命令里（单行、无变量），改端口必须同步改这一行；只改环境变量不起作用。
 
 ## 三、容器内必须存在的环境变量
 

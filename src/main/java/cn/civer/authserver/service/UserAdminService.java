@@ -26,6 +26,7 @@ public class UserAdminService {
 
 	private static final Logger log = LoggerFactory.getLogger(UserAdminService.class);
 	private static final String DEFAULT_ROLE = "ROLE_USER";
+	private static final String ADMIN_ROLE = "ROLE_ADMIN";
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -74,14 +75,14 @@ public class UserAdminService {
 	public UserResponse update(Long id, String role, boolean enabled, String newPassword) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
-		if (StringUtils.hasText(role)) {
-			user.setRole(role);
-		}
+		String targetRole = StringUtils.hasText(role) ? role : user.getRole();
+		assertNotLastEnabledAdmin(user, targetRole, enabled);
+		user.setRole(targetRole);
 		user.setEnabled(enabled);
 		if (StringUtils.hasText(newPassword)) {
 			user.setPassword(passwordEncoder.encode(newPassword));
 		}
-		log.info("[users] updated: id={}, enabled={}", id, enabled);
+		log.info("[users] updated: id={}, role={}, enabled={}", id, targetRole, enabled);
 		return UserResponse.from(userRepository.save(user));
 	}
 
@@ -93,9 +94,27 @@ public class UserAdminService {
 	public void disable(Long id) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
+		assertNotLastEnabledAdmin(user, user.getRole(), false);
 		user.setEnabled(false);
 		userRepository.save(user);
 		log.info("[users] disabled: id={}", id);
+	}
+
+	/**
+	 * 不允许把最后一个启用中的管理员停用或降级。
+	 *
+	 * 管理台没有「找回管理员」的入口，最后一个管理员被拿掉后只能改库恢复；
+	 * 而表单本身对「自己的那一行」和「别人的那一行」长得一模一样，
+	 * 误操作成本极低，因此在服务端兜住。
+	 */
+	private void assertNotLastEnabledAdmin(User user, String targetRole, boolean targetEnabled) {
+		boolean currentlyAdmin = ADMIN_ROLE.equals(user.getRole()) && user.isEnabled();
+		boolean remainsAdmin = ADMIN_ROLE.equals(targetRole) && targetEnabled;
+		if (currentlyAdmin && !remainsAdmin
+				&& userRepository.countByRoleAndEnabledTrue(ADMIN_ROLE) <= 1) {
+			throw BusinessException.conflict(
+					"这是最后一个启用中的管理员，不能停用或降级。请先给其他账号授予管理员权限。");
+		}
 	}
 
 	/**

@@ -27,16 +27,12 @@ public class SsoLogoutSuccessHandler implements LogoutSuccessHandler {
 			String issuer = ssoLogoutService.getResolvedIssuer(request);
 			ssoLogoutService.performGlobalLogout(authentication.getName(), issuer);
 		}
+		// 回跳地址只接受已注册客户端 host 白名单内的 URL；isAllowedLogoutRedirect 内部
+		// 已对解析失败返回 false，这里不需要再包一层 catch —— 原先捕获 Throwable
+		// 是为了绕过一个早已不存在的 NoSuchMethodError，反而会把真实错误吞掉。
 		String redirectUri = request.getParameter("redirect_uri");
-		boolean allowRedirect = false;
-		if (redirectUri != null && !redirectUri.isBlank()) {
-			try {
-				allowRedirect = ssoLogoutService.isAllowedLogoutRedirect(redirectUri);
-			} catch (Throwable t) {
-				// 未重新编译 auth-server 时可能报 NoSuchMethodError（Error），忽略后使用默认登出页
-			}
-		}
-		if (allowRedirect) {
+		if (redirectUri != null && !redirectUri.isBlank()
+				&& ssoLogoutService.isAllowedLogoutRedirect(redirectUri)) {
 			response.sendRedirect(redirectUri);
 		} else {
 			response.sendRedirect("/login?logout");

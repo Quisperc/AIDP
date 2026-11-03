@@ -1,5 +1,11 @@
-# 集成测试专用配置：使用 H2 内存库，不依赖外部 PostgreSQL。
-# 注意 MODE=PostgreSQL —— 主库的 schema.sql 是 PostgreSQL 语法。
+# 集成测试 profile：application-test.yml
+#
+# 之前这个文件叫 application.yml，会**整体遮蔽** src/main/resources/application.yml
+# （classpath 上同名资源只有 test-classes 那份生效），导致主配置里的键在测试中全都读不到，
+# 测试也就永远验证不到生产用的那些默认值。改名 + @ActiveProfiles("test") 后，
+# 主配置正常加载，这里只覆盖「测试必须不同」的部分（数据源、端口、会话、缓存）。
+#
+# 注意 MODE=PostgreSQL —— 迁移脚本是 PostgreSQL 语法，H2 需要这个模式才能跑同一份 V1。
 spring:
   datasource:
     url: jdbc:h2:mem:aidp-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -15,12 +21,10 @@ spring:
   sql:
     init:
       mode: never
-  # 显式锁定单机缓存：classpath 里一旦有 Redis，Spring Boot 的自动推断会选
+  # 显式锁定单机缓存：classpath 里有 Redis 时 Spring Boot 的自动推断会选
   # RedisCacheManager，而测试环境没有 Redis 服务，缓存读写会落空。
-  # 主配置已用 CACHE_TYPE 默认 simple，但 test 配置整体覆盖，须再声明一次。
   cache:
     type: simple
-    cache-names: ssoAllowedHosts
   session:
     store-type: none
   jpa:
@@ -29,18 +33,16 @@ spring:
       ddl-auto: none
     show-sql: false
     open-in-view: false
-  security:
-    oauth2:
-      authorizationserver:
-        issuer: ${app.base-url}
 
 server:
   port: 0
 
 app:
   base-url: http://localhost:8080
-  # 测试不再依赖启动预置的客户端：需要客户端的用例自己建（见 OpenRedirectSecurityTest），
-  # 这样用例是自洽的，改初始化逻辑不会连带弄坏无关测试。
+  # 测试不依赖启动预置账号：需要账号的用例自己造（见 AdminUserPageTest），
+  # 这样用例自洽，改初始化逻辑不会连带弄坏无关测试。
+  bootstrap:
+    seed-demo-users: false
 
 logging:
   level:
