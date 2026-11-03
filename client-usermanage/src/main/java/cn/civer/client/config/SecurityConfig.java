@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.session.SessionRegistry;
@@ -23,6 +24,8 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 
 import java.io.IOException;
@@ -74,14 +77,39 @@ public class SecurityConfig {
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests(authorize -> authorize
+						// 数据接口：管理功能限管理员，/api/me 只要登录即可
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
-						.requestMatchers("/error", "/login").permitAll()
+						.requestMatchers("/api/me").authenticated()
+						// 认证中心的后端登出回调，以及 SPA 的静态资源与前端路由
 						.requestMatchers("/api/sso-logout").permitAll()
-						.anyRequest().authenticated())
-				// 允许来自 Auth Server 的后端登出回调不带 CSRF Token
-				.csrf(csrf -> csrf.ignoringRequestMatchers("/api/sso-logout"))
+						.anyRequest().permitAll())
+				/*
+				 * 未认证访问数据接口时返回 401，而不是重定向到登录页：
+				 * SPA 的 fetch 收到的是一段 HTML 登录页而非 401，只能靠解析响应猜状态。
+				 * 改成 401 后前端可明确判断并跳转 /oauth2/authorization/oidc-client。
+				 *
+				 * 注意 anyRequest().permitAll() 是因为 SPA 的前端路由（/users、/clients 等）
+				 * 本就需要匿名可达，页面内的权限由 /admin/** 的数据接口把关。
+				 * 后续新增后端接口时，务必显式归入上面的认证规则，不要依赖这一条兜底。
+				 */
+				.exceptionHandling(ex -> ex
+						.defaultAuthenticationEntryPointFor(
+								new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+								// 用函数式 matcher：Spring Security 7 默认走 PathPattern，
+								// AntPathRequestMatcher 已不适用
+								request -> request.getRequestURI().startsWith("/admin/")
+										|| request.getRequestURI().equals("/api/me")))
+				/*
+				 * 前后端分离后，页面不再由服务端渲染，CSRF Token 无法通过模板注入表单。
+				 * 改用 Cookie 仓库（HttpOnly=false）把令牌放进 XSRF-TOKEN，
+				 * 前端从 cookie 读出后回传 X-XSRF-TOKEN 头。
+				 *
+				 * 后端登出回调来自认证中心，拿不到本站 cookie，必须豁免。
+				 */
+				.csrf(csrf -> csrf
+						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+						.ignoringRequestMatchers("/api/sso-logout"))
 				.oauth2Login(oauth2 -> oauth2
-						.loginPage("/login")
 						.failureHandler(this::onOAuth2LoginFailure)
 						.userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService()))
 						.successHandler(customAuthenticationSuccessHandler))

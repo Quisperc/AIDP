@@ -54,3 +54,8 @@ application-secret.yml
 
 ### Maven flatten plugin (CI 发布用产物) ###
 .flattened-pom.xml
+
+### 前端 ###
+node_modules/
+# Vite 构建产物已提交到各模块的 src/main/resources/static/，无需忽略
+*.tsbuildinfo

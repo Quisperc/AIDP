@@ -1,26 +1,25 @@
 package cn.civer.client.controller;
 
 import cn.civer.client.client.ClientServiceClient;
-import org.springframework.web.client.RestClientResponseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
+/**
+ * 客户端管理 REST 接口（管理后台 SPA 的数据源）。
+ *
+ * 本服务不直接持有客户端数据，统一转发认证中心的 /api/clients。
+ * 原先这里把认证中心的异常翻成中文再塞进 Model；改成分离后，认证中心返回
+ * 标准 ApiError，由前端直接展示 message，异常翻译只需做一次。
+ */
+@RestController
 @RequestMapping("/admin/clients")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class ClientManagementController {
 
-	private static final Logger log = LoggerFactory.getLogger(ClientManagementController.class);
 	private final ClientServiceClient clientServiceClient;
 
 	public ClientManagementController(ClientServiceClient clientServiceClient) {
@@ -28,135 +27,29 @@ public class ClientManagementController {
 	}
 
 	@GetMapping
-	public String listClients(Model model) {
-		try {
-			List<ClientServiceClient.ClientSummaryDto> clients = clientServiceClient.listClients();
-			model.addAttribute("clients", clients);
-			log.debug("[admin/clients] list size={}", clients != null ? clients.size() : 0);
-		} catch (Exception e) {
-			log.warn("[admin/clients] list failed: {}", e.getMessage());
-			model.addAttribute("error", "加载客户端列表失败: " + toFriendlyMessage(e));
-			model.addAttribute("clients", List.<ClientServiceClient.ClientSummaryDto>of());
-		}
-		return "clients";
+	public List<ClientServiceClient.ClientSummaryDto> listClients() {
+		return clientServiceClient.listClients();
 	}
 
-	@GetMapping("/edit")
-	public String editForm(@RequestParam String clientId, Model model, RedirectAttributes redirectAttributes) {
-		try {
-			ClientServiceClient.ClientSummaryDto client = clientServiceClient.getClient(clientId);
-			model.addAttribute("client", client);
-			log.debug("[admin/clients] edit form clientId={}", clientId);
-			return "client-edit";
-		} catch (Exception e) {
-			log.warn("[admin/clients] edit form failed clientId={}: {}", clientId, e.getMessage());
-			redirectAttributes.addFlashAttribute("error", "客户端不存在或加载失败: " + toFriendlyMessage(e));
-			return "redirect:/admin/clients";
-		}
+	@GetMapping("/{clientId}")
+	public ClientServiceClient.ClientSummaryDto getClient(@PathVariable String clientId) {
+		return clientServiceClient.getClient(clientId);
 	}
 
 	@PostMapping
-	public String addClient(@RequestParam String clientId,
-			@RequestParam String clientSecret,
-			@RequestParam String redirectUri,
-			@RequestParam String postLogoutRedirectUri,
-			@RequestParam String clientName,
-			@RequestParam(required = false, defaultValue = "false") boolean requirePkce,
-			RedirectAttributes redirectAttributes) {
-		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
-		dto.clientId = clientId;
-		dto.clientSecret = clientSecret;
-		dto.redirectUri = redirectUri;
-		dto.postLogoutRedirectUri = postLogoutRedirectUri;
-		dto.clientName = clientName;
-		dto.requirePkce = requirePkce;
-
-		try {
-			clientServiceClient.registerClient(dto);
-			redirectAttributes.addFlashAttribute("message", "客户端注册成功！");
-			log.info("[admin/clients] registered clientId={}", clientId);
-		} catch (Exception e) {
-			log.warn("[admin/clients] register failed clientId={}: {}", clientId, e.getMessage());
-			redirectAttributes.addFlashAttribute("error", "注册失败: " + toFriendlyMessage(e));
-		}
-		return "redirect:/admin/clients";
+	@ResponseStatus(HttpStatus.CREATED)
+	public void registerClient(@RequestBody ClientServiceClient.ClientDto dto) {
+		clientServiceClient.registerClient(dto);
 	}
 
-	@PostMapping("/edit")
-	public String updateClient(@RequestParam String clientId,
-			@RequestParam(required = false) String clientSecret,
-			@RequestParam String redirectUri,
-			@RequestParam String postLogoutRedirectUri,
-			@RequestParam String clientName,
-			@RequestParam(required = false, defaultValue = "false") boolean requirePkce,
-			RedirectAttributes redirectAttributes) {
-		ClientServiceClient.ClientDto dto = new ClientServiceClient.ClientDto();
-		dto.clientId = clientId;
-		dto.clientSecret = (clientSecret != null && !clientSecret.isBlank()) ? clientSecret : null;
-		dto.redirectUri = redirectUri;
-		dto.postLogoutRedirectUri = postLogoutRedirectUri;
-		dto.clientName = clientName;
-		dto.requirePkce = requirePkce;
-		try {
-			clientServiceClient.updateClient(clientId, dto);
-			redirectAttributes.addFlashAttribute("message", "客户端更新成功！");
-			log.info("[admin/clients] updated clientId={}", clientId);
-		} catch (Exception e) {
-			log.warn("[admin/clients] update failed clientId={}: {}", clientId, e.getMessage());
-			redirectAttributes.addFlashAttribute("error", "更新失败: " + toFriendlyMessage(e));
-		}
-		return "redirect:/admin/clients";
+	@PutMapping("/{clientId}")
+	public void updateClient(@PathVariable String clientId, @RequestBody ClientServiceClient.ClientDto dto) {
+		clientServiceClient.updateClient(clientId, dto);
 	}
 
-	@PostMapping("/delete")
-	public String deleteClient(@RequestParam String clientId, RedirectAttributes redirectAttributes) {
-		try {
-			clientServiceClient.deleteClient(clientId);
-			redirectAttributes.addFlashAttribute("message", "客户端已删除。");
-			log.info("[admin/clients] deleted clientId={}", clientId);
-		} catch (Exception e) {
-			log.warn("[admin/clients] delete failed clientId={}: {}", clientId, e.getMessage());
-			redirectAttributes.addFlashAttribute("error", "删除失败: " + toFriendlyMessage(e));
-		}
-		return "redirect:/admin/clients";
-	}
-
-	/**
-	 * 将接口异常转为对用户友好的中文提示。
-	 */
-	private static String toFriendlyMessage(Throwable e) {
-		String msg = e.getMessage();
-		if (msg == null) {
-			return "请稍后重试。";
-		}
-		// RestClient 4xx/5xx 会抛出 ResponseException，尝试提取可读信息
-		if (e instanceof RestClientResponseException re) {
-			int status = re.getStatusCode().value();
-			if (status == 409) {
-				return "该 Client ID 已被使用，请换一个。";
-			}
-			if (status == 404) {
-				return "客户端不存在或已失效。";
-			}
-			String body = re.getResponseBodyAsString();
-			if (body != null && body.contains("already exists")) {
-				return "该 Client ID 已被使用，请换一个。";
-			}
-			if (body != null && (body.contains("not found") || body.contains("Client not found"))) {
-				return "客户端不存在或已失效。";
-			}
-		}
-		if (msg.contains("already exists") || msg.contains("Client ID already exists")) {
-			return "该 Client ID 已被使用，请换一个。";
-		}
-		if (msg.contains("not found") || msg.contains("Client not found")) {
-			return "客户端不存在或已失效。";
-		}
-		// 避免把整段 HTTP 错误原文展示给用户
-		if (msg.contains("Internal Error") || msg.contains("during [POST]") || msg.contains("during [GET]")
-				|| msg.contains("during [PUT]") || msg.contains("during [DELETE]")) {
-			return "认证中心暂时不可用，请稍后重试。";
-		}
-		return msg.length() > 120 ? msg.substring(0, 120) + "…" : msg;
+	@DeleteMapping("/{clientId}")
+	public ResponseEntity<Void> deleteClient(@PathVariable String clientId) {
+		clientServiceClient.deleteClient(clientId);
+		return ResponseEntity.noContent().build();
 	}
 }

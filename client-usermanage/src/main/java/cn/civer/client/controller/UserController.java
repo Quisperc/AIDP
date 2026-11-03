@@ -1,16 +1,23 @@
 package cn.civer.client.controller;
 
 import cn.civer.client.service.UserService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
-@Controller
+import java.util.List;
+
+/**
+ * 用户管理 REST 接口（管理后台 SPA 的数据源）。
+ *
+ * 原先是表单式控制器：用 POST 承载删除、有 /{id}/enable 这种只做重定向的空方法、
+ * 返回 Thymeleaf 视图名。改为前后端分离后统一为 REST 语义。
+ *
+ * 响应里的 password 恒为空：认证中心的 /api/users 现在返回不含密码的 UserResponse，
+ * 即使这里把字段置空也是双保险。
+ */
+@RestController
 @RequestMapping("/admin/users")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class UserController {
@@ -22,61 +29,49 @@ public class UserController {
 	}
 
 	@GetMapping
-	public String listUsers(Model model) {
-		model.addAttribute("users", userService.getUsers());
-		model.addAttribute("newUser", new UserService.UserDto());
-		return "users";
+	public List<UserService.UserDto> listUsers() {
+		return userService.getUsers().stream().map(UserController::scrub).toList();
+	}
+
+	@GetMapping("/{id}")
+	public UserService.UserDto getUser(@PathVariable Long id) {
+		return scrub(userService.getUser(id));
 	}
 
 	@PostMapping
-	public String createUser(@ModelAttribute UserService.UserDto user) {
-		userService.createUser(user);
-		return "redirect:/admin/users";
+	@ResponseStatus(HttpStatus.CREATED)
+	public UserService.UserDto createUser(@RequestBody UserService.UserDto user) {
+		return scrub(userService.createUser(user));
 	}
 
-	@PostMapping("/{id}/delete") // Using POST for form submission simplicity instead of DELETE
-	public String deleteUser(@PathVariable Long id) {
-		userService.deleteUser(id);
-		return "redirect:/admin/users";
-	}
-
-	@PostMapping("/{id}/enable")
-	public String enableUser(@PathVariable Long id) {
-		return "redirect:/admin/users";
-	}
-
-	@GetMapping("/{id}/edit")
-	public String editUserPage(@PathVariable Long id, Model model) {
-		UserService.UserDto user = userService.getUser(id);
-		model.addAttribute("user", user);
-		return "user-edit";
-	}
-
-	@PostMapping("/{id}/update")
-	public String updateUser(@PathVariable Long id,
-			@ModelAttribute UserService.UserDto user) {
-		// user object from form might have null username.
-		// logic: existing user details + form updates.
+	/**
+	 * 更新：以现有记录为基础做局部覆盖。
+	 * 密码留空表示不修改；用户名保持不可由管理员直接改动（改自己的账号走 /admin/profile）。
+	 */
+	@PutMapping("/{id}")
+	public UserService.UserDto updateUser(@PathVariable Long id, @RequestBody UserService.UserDto patch) {
 		UserService.UserDto existing = userService.getUser(id);
-		existing.setRole(user.getRole());
-		// If password is provided, update it. If empty, keep null (Service/Controller
-		// handles this).
-		existing.setPassword(user.getPassword());
-		existing.setEnabled(user.isEnabled());
-		// Username is typically immutable or handled via /me, but here admin might
-		// update it.
-		// user-edit.html has username readonly.
-		// For robustness, let's trust the ID.
+		existing.setRole(patch.getRole() != null ? patch.getRole() : existing.getRole());
+		existing.setEnabled(patch.isEnabled());
+		if (patch.getPassword() != null && !patch.getPassword().isEmpty()) {
+			existing.setPassword(patch.getPassword());
+		} else {
+			existing.setPassword(null); // 明确不修改密码
+		}
 		userService.updateUser(id, existing);
-		return "redirect:/admin/users";
+		return scrub(existing);
 	}
 
-	@PostMapping("/{id}/status")
-	public String toggleStatus(@PathVariable Long id) {
-		// Robust Logic: Fetch -> Toggle -> Save
-		UserService.UserDto user = userService.getUser(id);
-		user.setEnabled(!user.isEnabled());
-		userService.updateUser(id, user);
-		return "redirect:/admin/users";
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+		userService.deleteUser(id);
+		return ResponseEntity.noContent().build();
+	}
+
+	private static UserService.UserDto scrub(UserService.UserDto user) {
+		if (user != null) {
+			user.setPassword(null);
+		}
+		return user;
 	}
 }

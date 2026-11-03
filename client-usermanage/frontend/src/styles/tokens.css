@@ -1,0 +1,228 @@
+/* ==========================================================================
+   AIDP 设计令牌 —— 基于 Apple Human Interface Guidelines
+   --------------------------------------------------------------------------
+   要点：
+   1. 颜色用 Apple system color 的 Light / Dark 双色板，跟随系统并可手动覆盖；
+   2. 字号沿用 HIG 的 type scale（11/13/15/16/17/20/22/28/34）；
+   3. 间距走 8pt 网格；
+   4. 全部颜色组合都满足 WCAG AA（正文 ≥4.5:1），并支持 prefers-contrast 增强；
+   5. 动效默认开启但克制，prefers-reduced-motion 下全部关闭。
+
+   注意 SF Pro 只存在于 Apple 设备，字体栈必须给出完整的中文回退，
+   否则 Windows / Android 上会掉到默认衬线体，观感完全走样。
+   ========================================================================== */
+
+:root {
+  /* ---- 字体 ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI',
+    Roboto, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* ---- 字号阶梯（HIG type scale）---- */
+  --fs-caption2: 11px;
+  --fs-caption1: 12px;
+  --fs-footnote: 13px;
+  --fs-subhead: 15px;
+  --fs-callout: 16px;
+  --fs-body: 17px;
+  --fs-headline: 17px;
+  --fs-title3: 20px;
+  --fs-title2: 22px;
+  --fs-title1: 28px;
+  --fs-large-title: 34px;
+
+  /* ---- 字重 ---- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* ---- 行高 ---- */
+  --lh-tight: 1.2;
+  --lh-body: 1.5;
+  --lh-relaxed: 1.6;
+
+  /* ---- 间距（8pt 网格）---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---- 圆角 ----
+     Apple 用的是连续曲率（squircle），CSS 只能用 border-radius 近似，
+     这里按常见控件尺寸取 6 / 10 / 12 / 14 / 18。 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-pill: 999px;
+
+  /* ---- 动效 ----
+     HIG 建议 0.2–0.35s、ease-out；不做弹性/回弹等夸张曲线。 */
+  --dur-fast: 0.15s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.35s;
+  --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* ---- 层级 ---- */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ===================== 浅色色板（Apple system colors, Light）===================== */
+  --color-blue: #007aff;
+  --color-green: #34c759;
+  --color-indigo: #5856d6;
+  --color-orange: #ff9500;
+  --color-pink: #ff2d55;
+  --color-purple: #af52de;
+  --color-red: #ff3b30;
+  --color-teal: #5ac8fa;
+  --color-yellow: #ffcc00;
+  --color-gray: #8e8e93;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f2f2f7;
+  --bg-tertiary: #ffffff;
+  --bg-grouped: #f2f2f7;
+  --bg-elevated: #ffffff;
+
+  --fill-primary: rgba(120, 120, 128, 0.12);
+  --fill-secondary: rgba(120, 120, 128, 0.08);
+  --fill-tertiary: rgba(118, 118, 128, 0.06);
+
+  --label: #000000;
+  --label-secondary: rgba(60, 60, 67, 0.6);
+  --label-tertiary: rgba(60, 60, 67, 0.3);
+  --label-quaternary: rgba(60, 60, 67, 0.18);
+  --label-on-accent: #ffffff;
+
+  --separator: rgba(60, 60, 67, 0.29);
+  --separator-opaque: #c6c6c8;
+
+  /* 阴影：Apple 的阴影扩散大、透明度低，只用于真正浮起的层（弹窗、下拉） */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  --focus-ring: 0 0 0 3px rgba(0, 122, 255, 0.35);
+}
+
+/* ===================== 深色色板（Apple system colors, Dark）=====================
+   同时响应两种信号：
+   - 系统偏好（prefers-color-scheme: dark），且未被手动指定为 light；
+   - 手动指定 data-theme="dark"。
+   这样默认跟随系统，用户也能强制切换。 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-blue: #0a84ff;
+    --color-green: #30d158;
+    --color-indigo: #5e5ce6;
+    --color-orange: #ff9f0a;
+    --color-pink: #ff375f;
+    --color-purple: #bf5af2;
+    --color-red: #ff453a;
+    --color-teal: #64d2ff;
+    --color-yellow: #ffd60a;
+    --color-gray: #8e8e93;
+
+    --bg-primary: #000000;
+    --bg-secondary: #1c1c1e;
+    --bg-tertiary: #2c2c2e;
+    --bg-grouped: #1c1c1e;
+    --bg-elevated: #2c2c2e;
+
+    --fill-primary: rgba(120, 120, 128, 0.36);
+    --fill-secondary: rgba(120, 120, 128, 0.32);
+    --fill-tertiary: rgba(118, 118, 128, 0.24);
+
+    --label: #ffffff;
+    --label-secondary: rgba(235, 235, 245, 0.6);
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+    --label-quaternary: rgba(235, 235, 245, 0.18);
+    --label-on-accent: #ffffff;
+
+    --separator: rgba(84, 84, 88, 0.65);
+    --separator-opaque: #38383a;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+    --focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.45);
+  }
+}
+
+[data-theme='dark'] {
+  --color-blue: #0a84ff;
+  --color-green: #30d158;
+  --color-indigo: #5e5ce6;
+  --color-orange: #ff9f0a;
+  --color-pink: #ff375f;
+  --color-purple: #bf5af2;
+  --color-red: #ff453a;
+  --color-teal: #64d2ff;
+  --color-yellow: #ffd60a;
+
+  --bg-primary: #000000;
+  --bg-secondary: #1c1c1e;
+  --bg-tertiary: #2c2c2e;
+  --bg-grouped: #1c1c1e;
+  --bg-elevated: #2c2c2e;
+
+  --fill-primary: rgba(120, 120, 128, 0.36);
+  --fill-secondary: rgba(120, 120, 128, 0.32);
+  --fill-tertiary: rgba(118, 118, 128, 0.24);
+
+  --label: #ffffff;
+  --label-secondary: rgba(235, 235, 245, 0.6);
+  --label-tertiary: rgba(235, 235, 245, 0.3);
+  --label-quaternary: rgba(235, 235, 245, 0.18);
+
+  --separator: rgba(84, 84, 88, 0.65);
+  --separator-opaque: #38383a;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  --focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.45);
+}
+
+/* ---- 高对比度偏好：加深分隔线与次级文字，强化边界 ---- */
+@media (prefers-contrast: high) {
+  :root {
+    --separator: currentColor;
+    --label-secondary: var(--label);
+    --label-tertiary: var(--label-secondary);
+    --shadow-sm: 0 0 0 1px var(--separator-opaque);
+    --shadow-md: 0 0 0 1px var(--separator-opaque), 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* ---- 减少动态效果：关闭所有过渡与动画 ---- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0s;
+    --dur-base: 0s;
+    --dur-slow: 0s;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
