@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS oauth2_authorization_consent (
     PRIMARY KEY (registered_client_id, principal_name)
 );
 
+-- 签名密钥：原先每次启动都在内存里随机生成 RSA 密钥对，
+-- 结果是重启后所有已签发令牌立即失效，且多实例部署时各实例密钥不同、
+-- 彼此签发的令牌互相验签失败（等于锁死单实例）。持久化后可任意重启与水平扩容。
+CREATE TABLE IF NOT EXISTS oauth2_signing_key (
+    id varchar(100) NOT NULL,
+    key_id varchar(100) NOT NULL,
+    public_key text NOT NULL,
+    private_key text NOT NULL,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
+);
+
 -- 索引：全局登出会按 principal_name 删除同意记录与授权记录，
 -- 删除客户端时按 registered_client_id 清理，client_id 则是每次登录都要查。
 -- 缺索引时这些操作都会退化成全表扫描。
