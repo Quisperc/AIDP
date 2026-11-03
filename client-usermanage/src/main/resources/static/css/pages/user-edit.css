@@ -1,0 +1,62 @@
+/* client-usermanage / user-edit.html 页面特有样式 */
+
+.back-link {
+    margin-bottom: 24px;
+    padding: 12px 20px;
+    border-radius: 10px;
+}
+.btn-save {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.btn-save:hover {
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+.container {
+    max-width: 560px;
+}
+.form-card {
+    border-radius: 20px;
+    padding: 40px;
+}
+.form-divider {
+    margin: 28px 0;
+}
+.form-group {
+    margin-bottom: 24px;
+}
+.form-group input, .form-group select {
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 15px;
+}
+.form-group input:focus, .form-group select:focus {
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+.form-group label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.form-header {
+    gap: 16px;
+    margin-bottom: 32px;
+}
+.form-hint {
+    margin-top: 8px;
+}
+.form-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+}
+.form-icon svg {
+    width: 28px;
+    height: 28px;
+}
+body {
+    padding: 40px 20px;
+}
+.form-header .username {
+    color: #a5b4fc;
+}

@@ -1,0 +1,56 @@
+/* client-usermanage / client-edit.html 页面特有样式 */
+
+.back-link {
+    margin-bottom: 24px;
+    padding: 12px 20px;
+    border-radius: 10px;
+}
+.btn-save {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+.btn-save:hover {
+    box-shadow: 0 10px 30px rgba(240, 147, 251, 0.4);
+}
+.container {
+    max-width: 560px;
+    padding: 40px 24px;
+}
+.form-card {
+    border-radius: 20px;
+    padding: 40px;
+}
+.form-divider {
+    margin: 28px 0;
+}
+.form-group {
+    margin-bottom: 24px;
+}
+.form-group label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+.form-header {
+    gap: 16px;
+    margin-bottom: 32px;
+}
+.form-hint {
+    margin-top: 8px;
+}
+.form-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 16px;
+}
+.form-icon svg {
+    width: 28px;
+    height: 28px;
+}
+body {
+    padding-top: 64px;
+}
+.form-header .client-id {
+    color: #f0a0fc;
+    font-family: 'SF Mono', Monaco, monospace;
+}

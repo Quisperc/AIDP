@@ -1,0 +1,170 @@
+/* auth-server / consent.html 页面特有样式 */
+
+.btn-submit {
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+.btn-submit:hover {
+    box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
+}
+.user-info {
+    margin-bottom: 28px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+.btn-group {
+    display: flex;
+    gap: 12px;
+}
+.consent-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+}
+.consent-container {
+    width: 100%;
+    max-width: 480px;
+    animation: fadeInUp 0.6s ease-out;
+}
+.consent-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+.consent-icon {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+}
+.consent-icon svg {
+    width: 36px;
+    height: 36px;
+    fill: white;
+}
+.permission-text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.scope-item {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.scope-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+.scope-item input[type="checkbox"]:checked {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+}
+.scope-item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+.scope-item label {
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+}
+.scope-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+.scope-item:last-child {
+    margin-bottom: 0;
+}
+.scope-list {
+    list-style: none;
+    margin-bottom: 32px;
+}
+.user-info p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.user-info p:last-child {
+    margin-bottom: 0;
+}
+.user-info strong {
+    color: #ffffff;
+    font-weight: 500;
+}
+button {
+    flex: 1;
+    padding: 16px 24px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 480px) {
+    h1 {
+        font-size: 20px;
+    }
+}
+@media (max-width: 480px) {
+    .btn-group {
+        flex-direction: column-reverse;
+    }
+}
+@media (max-width: 480px) {
+    .consent-card {
+        padding: 28px 20px;
+    }
+}

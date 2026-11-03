@@ -1,0 +1,152 @@
+/* client-usermanage / profile.html 页面特有样式 */
+
+.back-link {
+    margin-top: 32px;
+    padding: 14px 24px;
+    border-radius: 12px;
+}
+.container {
+    max-width: 600px;
+    padding: 40px 24px;
+}
+body {
+    padding-top: 64px;
+}
+h1 {
+    font-size: 28px;
+    margin-bottom: 32px;
+}
+.edit-form .btn-submit {
+    margin-top: 8px;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.edit-form .btn-submit:hover {
+    opacity: 0.9;
+}
+.edit-form .error-msg {
+    color: #f87171;
+    font-size: 14px;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: rgba(248, 113, 113, 0.15);
+    border-radius: 8px;
+}
+.edit-form .form-group {
+    margin-bottom: 20px;
+}
+.edit-form .form-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+.edit-form .form-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+.edit-form label {
+    display: block;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+.edit-hint {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    margin-bottom: 24px;
+}
+.edit-section {
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+}
+.edit-title {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.info-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.info-item:last-child {
+    border-bottom: none;
+}
+.info-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+}
+.info-label svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+.info-value {
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 15px;
+}
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+}
+.profile-avatar svg {
+    width: 50px;
+    height: 50px;
+    fill: white;
+}
+.profile-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 48px 40px;
+    text-align: center;
+}
+.profile-info {
+    text-align: left;
+}
+@media (max-width: 480px) {
+    h1 {
+        font-size: 24px;
+    }
+}
+@media (max-width: 480px) {
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+@media (max-width: 480px) {
+    .profile-card {
+        padding: 32px 24px;
+    }
+}
