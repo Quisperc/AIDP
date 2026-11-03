@@ -167,6 +167,36 @@ public class TokenConfig {
 	}
 
 	/**
+	 * 把 access token 里的 roles claim 还原成 GrantedAuthority。
+	 *
+	 * 下面的 jwtTokenCustomizer() 已经把用户角色写进 roles，但 resource server
+	 * 默认的 JwtAuthenticationConverter 只把 scope/scp 转成 SCOPE_*，完全忽略
+	 * roles。结果：token 里明明带着 ROLE_ADMIN，服务端却判不出该权限，
+	 * /api/** 的方法级 ROLE_ADMIN 校验一律返回 403。这里把两端接上。
+	 */
+	@Bean
+	public org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
+			jwtAuthenticationConverter() {
+		var scopes = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
+		var converter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+		converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+			java.util.List<GrantedAuthority> authorities =
+					new java.util.ArrayList<>(scopes.convert(jwt));
+			Object roles = jwt.getClaims().get("roles");
+			if (roles instanceof java.util.Collection<?> values) {
+				for (Object value : values) {
+					authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+							value.toString()));
+				}
+			} else if (roles instanceof String value) {
+				authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(value));
+			}
+			return authorities;
+		});
+		return converter;
+	}
+
+	/**
 	 * Customize JWT to include roles
 	 */
 	@Bean

@@ -31,7 +31,9 @@ public class AuthorizationServerConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http,
+			org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
+					jwtAuthenticationConverter) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
 						// 健康检查必须匿名可达，否则容器编排无法探活（会拿到 401/302）
@@ -52,7 +54,7 @@ public class AuthorizationServerConfig {
 						.authorizationEndpoint(authorizationEndpoint ->
 								authorizationEndpoint.consentPage("/oauth2/consent")))
 				.oauth2ResourceServer((resourceServer) -> resourceServer
-						.jwt(Customizer.withDefaults()));
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
 
 		return http.build();
 	}
