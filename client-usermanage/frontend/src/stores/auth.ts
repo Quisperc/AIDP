@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue'
-import { MeResponse, OAUTH_LOGIN_URL, api } from '../api'
-import { ApiError } from '../api/http'
+import { FRONTEND_URL, MeResponse, OAUTH_LOGIN_URL, api } from '../api'
+import { API_BASE, ApiError } from '../api/http'
 
 /**
  * 极简认证状态。
@@ -38,8 +38,12 @@ export function useAuth() {
   }
 
   function login(redirectTo?: string): void {
-    const target = redirectTo ?? window.location.pathname
-    // 通过 state 参数让认证中心登录后回跳到原先访问的页面
+    /*
+     * 必须传完整 URL 而不是 pathname：
+     * 跨域部署时后端要重定向回前端域名，只给 /users 它会拼成自己域名下的地址。
+     * 后端会对该地址做 host 白名单校验，避免变成开放重定向。
+     */
+    const target = redirectTo ?? window.location.href
     window.location.href = `${OAUTH_LOGIN_URL}?redirect=${encodeURIComponent(target)}`
   }
 
@@ -49,12 +53,15 @@ export function useAuth() {
    */
   function logout(): void {
     const authServer = import.meta.env.VITE_AUTH_SERVER_URL ?? ''
-    const returnTo = `${window.location.origin}/login`
+    // 明确回跳到前端地址；跨域部署时 window.location.origin 就是 EdgeOne 域名
+    const returnTo = `${FRONTEND_URL || window.location.origin}/login`
+    const localLogout = `${API_BASE}/logout`
     if (authServer) {
+      // 走认证中心的全局登出：撤销 consent 并向各子系统广播
       window.location.href =
         `${authServer}/oauth2/logout-all?redirect_uri=${encodeURIComponent(returnTo)}`
     } else {
-      window.location.href = '/logout'
+      window.location.href = localLogout
     }
   }
 

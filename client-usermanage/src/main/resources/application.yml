@@ -5,6 +5,10 @@ server:
       cookie:
         name: CLIENT_SESSIONID # 【关键】自定义 Cookie 名称，防止与 Auth Server 的冲突
         domain: civer.cn  # 注意前面的点，允许所有子域名共享
+        # 前端托管在 EdgeOne Pages 独立域名时属于跨站，Lax 会让浏览器拒绝存储会话 Cookie。
+        # 此时设 COOKIE_SAME_SITE=None + COOKIE_SECURE=true；同源/同站部署保持默认即可。
+        same-site: ${COOKIE_SAME_SITE:Lax}
+        secure: ${COOKIE_SECURE:false}
 
 logging:
   level:
@@ -17,6 +21,25 @@ spring:
     import: optional:file:./application-secret.yml
   application:
     name: client-usermanage           # 应用名称
+  # 多实例时设 SESSION_STORE=redis 与 REDIS_*，让登录会话和 maximumSessions(1)
+  # 真正跨实例生效；默认 none 为单机本地会话，不依赖 Redis。
+  session:
+    store-type: ${SESSION_STORE:none}
+    redis:
+      namespace: aidp:admin
+      # indexed 才会创建 FindByIndexNameSessionRepository，
+      # SpringSessionBackedSessionRegistry 依赖它按用户查所有会话。
+      # configure-action 让 Boot 自动开启 Redis keyspace notifications；
+      # 若 Redis 禁止 CONFIG 命令，改为 none 并手动配置 notify-keyspace-events。
+      repository-type: indexed
+      configure-action: configure_keyspace_notify_events
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      connect-timeout: 3s
   security:
     oauth2:
       client:
@@ -38,3 +61,14 @@ app:
   # 认证中心地址（tidp），HTTP Service Client 调 SSO 接口 + issuer-uri 均用此值；管理端 tum 必须填 tidp，否则 backchannel logout 验签会失败
   auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
   base-url: ${APP_BASE_URL:http://127.0.0.1:8081}  # 管理端自身地址（tum）
+  # ---- 跨域部署（前端托管在 EdgeOne Pages 独立域名）----
+  # 允许的来源，逗号分隔。Allow-Credentials 下不能用通配，必须逐个列出。
+  # 留空即同源部署，不注册任何 CORS 规则。
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  # 登录成功后回跳的前端站点地址，同时作为 redirect 参数的 host 白名单依据
+  frontend-url: ${FRONTEND_URL:}
+  cookie:
+    # 跨域时必须设为 None（会自动附带 Secure），同源保持 Lax
+    same-site: ${COOKIE_SAME_SITE:Lax}
+    secure: ${COOKIE_SECURE:false}

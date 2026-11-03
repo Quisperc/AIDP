@@ -15,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -25,8 +24,10 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -52,6 +53,10 @@ public class SecurityConfig {
 	@Value("${spring.security.oauth2.client.registration.oidc-client.client-id}")
 	private String clientId;
 
+	/** 跨域部署（前端在 EdgeOne Pages）时设为 None，同源部署保持 Lax */
+	@Value("${app.cookie.same-site:Lax}")
+	private String cookieSameSite;
+
 	public SecurityConfig(ClientRegistrationRepository clientRegistrationRepository,
 						  CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
 		this.clientRegistrationRepository = clientRegistrationRepository;
@@ -73,8 +78,28 @@ public class SecurityConfig {
 		return tokenUri.replaceFirst("/oauth2/token$", "").replaceFirst("/oauth2/token\\?.*$", "");
 	}
 
+	/**
+	 * CSRF 令牌以 Cookie 形式下发（前端读 XSRF-TOKEN 回传 X-XSRF-TOKEN 头）。
+	 *
+	 * 跨域部署时该 Cookie 必须 SameSite=None; Secure —— 否则浏览器不会在跨站请求中
+	 * 携带它，前端读不到 Token，所有 POST/PUT/DELETE 都会被拒。
+	 * 同源部署保持默认的 Lax 即可，由 app.cookie.same-site 控制。
+	 */
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public CsrfTokenRepository csrfTokenRepository() {
+		CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+		repository.setCookieCustomizer(cookie -> {
+			cookie.sameSite(cookieSameSite);
+			cookie.secure("None".equalsIgnoreCase(cookieSameSite));
+			cookie.httpOnly(false);
+			cookie.path("/");
+		});
+		return repository;
+	}
+
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http, SessionRegistry sessionRegistry,
+			CorsConfigurationSource corsConfigurationSource) throws Exception {
 		http
 				.authorizeHttpRequests(authorize -> authorize
 						// 数据接口：管理功能限管理员，/api/me 只要登录即可
@@ -107,8 +132,10 @@ public class SecurityConfig {
 				 * 后端登出回调来自认证中心，拿不到本站 cookie，必须豁免。
 				 */
 				.csrf(csrf -> csrf
-						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+						.csrfTokenRepository(csrfTokenRepository())
 						.ignoringRequestMatchers("/api/sso-logout"))
+				// 前端在 EdgeOne Pages 独立域名时跨域：来源由 app.cors.allowed-origins 显式列出
+				.cors(cors -> cors.configurationSource(corsConfigurationSource))
 				.oauth2Login(oauth2 -> oauth2
 						.failureHandler(this::onOAuth2LoginFailure)
 						.userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcUserService()))
@@ -125,14 +152,15 @@ public class SecurityConfig {
 				.sessionManagement(session -> session
 						.maximumSessions(1)
 						.expiredUrl("/")
-						.sessionRegistry(sessionRegistry()));
+						.sessionRegistry(sessionRegistry));
 		return http.build();
 	}
 
-	@Bean
-	public SessionRegistry sessionRegistry() {
-		return new SessionRegistryImpl();
-	}
+	/*
+	 * SessionRegistry 的 bean 定义在 SessionRegistryConfig：
+	 * 单机用内存实现，Redis 模式换成 SpringSessionBackedSessionRegistry，
+	 * 否则即使 session 共享了，maximumSessions(1) 仍只在单个实例内生效。
+	 */
 
 	/**
 	 * OAuth2 登录失败时区分「客户端配置错误」（如密钥错误）与其它认证失败，便于登录页展示不同提示。

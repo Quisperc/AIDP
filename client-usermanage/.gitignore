@@ -41,3 +41,6 @@ target/
 
 ### Logs ###
 *.log
+
+### 前端构建产物（EdgeOne 部署用） ###
+dist-edgeone/

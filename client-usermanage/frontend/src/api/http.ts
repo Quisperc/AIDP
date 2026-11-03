@@ -30,6 +30,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 后端接口基址。
+ *
+ * 前端部署在 EdgeOne Pages（独立域名）时与后端 um.civer.cn 不同源，
+ * 相对路径会打到前端自己域名上，因此必须显式配置绝对地址。
+ * 同源部署（jar 内置 static）时不设置该变量即可。
+ */
+export const API_BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+
 export function readCsrfToken(): string | null {
   const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
   return match ? decodeURIComponent(match[1]) : null
@@ -41,7 +50,13 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
   const { body, headers, ...rest } = options
 
   const init: RequestInit = {
-    credentials: 'same-origin',
+    /*
+     * 必须是 include 而不是 same-origin：
+     * 跨域场景下 same-origin 不会携带会话 Cookie，请求会全部变成未登录。
+     * 后端需配合：CORS 允许该来源且 Allow-Credentials，
+     * Cookie 设 SameSite=None; Secure。
+     */
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -62,7 +77,7 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
     init.body = JSON.stringify(body)
   }
 
-  const res = await fetch(path, init)
+  const res = await fetch(API_BASE + path, init)
 
   if (res.status === 204) {
     return undefined as T

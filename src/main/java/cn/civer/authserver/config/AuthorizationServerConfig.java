@@ -34,7 +34,9 @@ public class AuthorizationServerConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
-						.requestMatchers("/", "/login", "/error", "/favicon.ico", "/css/**", "/js/**", "/images/**").permitAll()
+						// 健康检查必须匿名可达，否则容器编排无法探活（会拿到 401/302）
+						.requestMatchers("/", "/login", "/error", "/favicon.ico", "/css/**", "/js/**", "/images/**",
+								"/actuator/health", "/actuator/health/**").permitAll()
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form

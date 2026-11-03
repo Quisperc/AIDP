@@ -1,4 +1,4 @@
-import { http } from './http'
+import { API_BASE, http } from './http'
 
 /** 后端返回的用户（管理后台侧，password 恒为空） */
 export interface UserDto {
@@ -59,5 +59,11 @@ export const api = {
   },
 }
 
-/** OAuth2 登录入口（由 Spring Security 提供） */
-export const OAUTH_LOGIN_URL = '/oauth2/authorization/oidc-client'
+/**
+ * OAuth2 登录入口（Spring Security 提供）。
+ * 跨域部署时必须是后端绝对地址 —— 登录是整页跳转，不走 fetch。
+ */
+export const OAUTH_LOGIN_URL = `${API_BASE}/oauth2/authorization/oidc-client`
+
+/** 前端自身地址：登录后由后端重定向回这里（同源部署时为空，交给相对路径） */
+export const FRONTEND_URL: string = (import.meta.env.VITE_FRONTEND_URL as string | undefined) ?? ''
