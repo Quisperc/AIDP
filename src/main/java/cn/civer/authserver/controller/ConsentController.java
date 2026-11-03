@@ -36,7 +36,6 @@ public class ConsentController {
 
 		// Remove scopes that were already approved
 		Set<String> scopesToApprove = new HashSet<>();
-		Set<String> previouslyApprovedScopes = new HashSet<>();
 		RegisteredClient registeredClient = this.registeredClientRepository.findByClientId(clientId);
 
 		if (registeredClient == null) {
@@ -54,7 +53,6 @@ public class ConsentController {
 		model.addAttribute("clientId", clientId);
 		model.addAttribute("state", state);
 		model.addAttribute("scopes", scopesToApprove);
-		model.addAttribute("previouslyApprovedScopes", previouslyApprovedScopes);
 		model.addAttribute("principalName", principal.getName());
 		model.addAttribute("clientName", registeredClient.getClientName() != null ? registeredClient.getClientName()
 				: registeredClient.getClientId());

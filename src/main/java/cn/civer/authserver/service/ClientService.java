@@ -3,6 +3,8 @@ package cn.civer.authserver.service;
 import cn.civer.authserver.dto.ClientDto;
 import cn.civer.authserver.dto.ClientSummaryDto;
 import cn.civer.authserver.exception.BusinessException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,9 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 /**
  * 客户端（RegisteredClient）业务逻辑。
@@ -42,38 +45,76 @@ public class ClientService {
 	private static final String LIST_SQL =
 			"SELECT id, client_id, client_name, redirect_uris, post_logout_redirect_uris, client_settings "
 					+ "FROM oauth2_registered_client ORDER BY client_id";
-	/** 匹配 Spring 序列化出来的 "settings.client.require-proof-key":true（容忍空白） */
-	private static final Pattern REQUIRE_PKCE = Pattern.compile("require-proof-key\"\\s*:\\s*true");
+	/** client_settings 里 PKCE 开关的键名（Spring Authorization Server 的序列化约定） */
+	private static final String REQUIRE_PROOF_KEY = "settings.client.require-proof-key";
 
 	private final RegisteredClientRepository registeredClientRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JdbcTemplate jdbcTemplate;
 	private final SsoLogoutService ssoLogoutService;
+	private final ObjectMapper objectMapper;
 	private final Duration accessTokenTtl;
 
 	public ClientService(RegisteredClientRepository registeredClientRepository,
 			PasswordEncoder passwordEncoder,
 			JdbcTemplate jdbcTemplate,
 			SsoLogoutService ssoLogoutService,
+			ObjectMapper objectMapper,
 			@Value("${app.auth.access-token-time-to-live:30m}") Duration accessTokenTtl) {
 		this.registeredClientRepository = registeredClientRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jdbcTemplate = jdbcTemplate;
 		this.ssoLogoutService = ssoLogoutService;
+		this.objectMapper = objectMapper;
 		this.accessTokenTtl = accessTokenTtl;
 	}
 
 	public List<ClientSummaryDto> listClients() {
-		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> {
-			String settings = rs.getString("client_settings");
-			return new ClientSummaryDto(
-					rs.getString("id"),
-					rs.getString("client_id"),
-					rs.getString("client_name"),
-					rs.getString("redirect_uris"),
-					rs.getString("post_logout_redirect_uris"),
-					settings != null && REQUIRE_PKCE.matcher(settings).find());
-		});
+		return jdbcTemplate.query(LIST_SQL, (rs, rowNum) -> new ClientSummaryDto(
+				rs.getString("id"),
+				rs.getString("client_id"),
+				rs.getString("client_name"),
+				// 库里 redirect_uris 是逗号分隔（JdbcRegisteredClientRepository 的存法），
+				// 详情接口返回的是换行分隔。同一个字段两种格式，前端按 \n 拆分时会漏掉
+				// 多 URI 客户端的「+n」提示，这里统一成换行。
+				toLineSeparated(rs.getString("redirect_uris")),
+				rs.getString("post_logout_redirect_uris"),
+				requireProofKey(rs.getString("client_settings"))));
+	}
+
+	/**
+	 * 从 client_settings 的 JSON 里读 PKCE 开关。
+	 *
+	 * 早期实现用正则匹配 "require-proof-key":true —— 对着 JSON 做正则，格式一变就静默出错，
+	 * 且拿不到「明确写了 false」与「压根没这个键」的区别。改为正常解析。
+	 *
+	 * 注意这里注入的是 Jackson 3（tools.jackson）的 ObjectMapper：
+	 * Spring Boot 4 已把默认 JSON 实现迁到 Jackson 3，com.fasterxml 的 ObjectMapper
+	 * 不在容器里，注入会直接启动失败。
+	 */
+	private boolean requireProofKey(String settingsJson) {
+		if (!StringUtils.hasText(settingsJson)) {
+			return false;
+		}
+		try {
+			Map<String, Object> settings = objectMapper.readValue(settingsJson,
+					new TypeReference<Map<String, Object>>() {
+					});
+			return Boolean.TRUE.equals(settings.get(REQUIRE_PROOF_KEY));
+		} catch (Exception e) {
+			log.warn("[clients] client_settings 解析失败，PKCE 按未开启处理: {}", e.getMessage());
+			return false;
+		}
+	}
+
+	private static String toLineSeparated(String raw) {
+		if (!StringUtils.hasText(raw)) {
+			return "";
+		}
+		return String.join("\n", Arrays.stream(raw.split(","))
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.toList());
 	}
 
 	public ClientSummaryDto getClient(String clientId) {
@@ -218,7 +259,7 @@ public class ClientService {
 		if (value == null || value.isBlank()) {
 			return List.of();
 		}
-		return java.util.Arrays.stream(value.split("[\\n,\\r]+"))
+		return Arrays.stream(value.split("[\\n,\\r]+"))
 				.map(String::trim)
 				.filter(s -> !s.isEmpty())
 				.toList();

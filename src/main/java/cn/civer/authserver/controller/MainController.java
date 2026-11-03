@@ -48,7 +48,7 @@ public class MainController {
 			model.addAttribute("statusText", getStatusText(statusCode));
 			Object msg = request.getAttribute(RequestDispatcher.ERROR_MESSAGE);
 			model.addAttribute("message", msg != null && StringUtils.hasText(msg.toString()) ? msg.toString() : "请求处理出错，请稍后重试。");
-			model.addAttribute("backUrl", StringUtils.hasText(continueUrl) ? continueUrl : null);
+			model.addAttribute("backUrl", safeBackUrl(continueUrl));
 		} else {
 			// 直接访问 /error（如 Consent 重定向或登录后误入）
 			model.addAttribute("status", 400);
@@ -56,9 +56,29 @@ public class MainController {
 			model.addAttribute("message", StringUtils.hasText(message)
 					? message
 					: "该客户端未在认证中心注册或已失效，请联系系统管理员在认证中心重新配置后再试。");
-			model.addAttribute("backUrl", StringUtils.hasText(continueUrl) ? continueUrl : null);
+			model.addAttribute("backUrl", safeBackUrl(continueUrl));
 		}
 		return "error";
+	}
+
+	/**
+	 * 「返回」按钮的落点只接受站内相对路径。
+	 *
+	 * continue 直接来自 query 参数，若原样塞进 href：
+	 * - /error?continue=javascript:alert(document.cookie) —— 用户点「返回」就在**认证中心域名**下执行脚本，
+	 *   而这里正是持有 SSO 会话的地方；
+	 * - /error?continue=//evil.com —— 协议相对 URL，开放重定向的经典绕过写法。
+	 * 两者都不合法时返回 null，模板会退化成 history.back()，不丢功能。
+	 */
+	private static String safeBackUrl(String continueUrl) {
+		if (!StringUtils.hasText(continueUrl)) {
+			return null;
+		}
+		String value = continueUrl.trim();
+		if (value.startsWith("/") && !value.startsWith("//")) {
+			return value;
+		}
+		return null;
 	}
 
 	private static String getStatusText(int code) {

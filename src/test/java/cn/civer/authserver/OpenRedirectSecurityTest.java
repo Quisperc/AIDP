@@ -11,7 +11,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 
 /**
@@ -77,5 +80,25 @@ class OpenRedirectSecurityTest {
                         .param("client_id", "test-client")
                         .param("redirect_uri", "http://localhost:8081/home"))
                 .andExpect(redirectedUrl("http://localhost:8081/home"));
+    }
+
+    /**
+     * 错误页的「返回」按钮同样不能用请求参数直接拼 href：
+     * 认证中心域名握着 SSO 会话，一个 javascript: 链接就在那里执行脚本。
+     */
+    @Test
+    @DisplayName("错误页不渲染脚本协议或外站回跳地址")
+    void errorPageRejectsUnsafeContinueUrl() throws Exception {
+        for (String unsafe : new String[]{"javascript:alert(document.cookie)", "https://evil.com/x", "//evil.com/x"}) {
+            mockMvc.perform(get("/error").param("continue", unsafe))
+                    .andExpect(content().string(not(containsString(unsafe))));
+        }
+    }
+
+    @Test
+    @DisplayName("错误页允许站内相对路径作为回跳地址")
+    void errorPageAllowsInternalContinueUrl() throws Exception {
+        mockMvc.perform(get("/error").param("continue", "/users"))
+                .andExpect(content().string(containsString("href=\"/users\"")));
     }
 }
