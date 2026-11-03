@@ -27,6 +27,18 @@
 流水线在 `docker compose up` 之后会轮询健康地址（40 次 × 3 秒），拿不到 `"UP"` 就判定发布失败
 并打印最后 120 行容器日志。
 
+探活成功后会在 `/home/idp/auth_server/.last-health-ok` 写一个时间戳，
+用来区分「发布成功」和「发布成功但探活没跑」：
+
+```bash
+cat /home/idp/auth_server/.last-health-ok     # 例：2026-11-04T00:03:53+08:00
+docker inspect -f '{{.State.StartedAt}}' idp_auth_server
+```
+
+两个时间相差 10 秒左右即为正常（容器启动 + Spring 起来 + 探活）。
+健康检查脚本刻意写成单行、不带 shell 变量：这一段由 CNB 通过 SSH 在服务器上执行，
+跨行变量会被替换成空串，曾导致空 URL 轮询 120 秒后误判失败。
+
 > 健康状态里包含 Redis 探针：`SESSION_STORE=redis` 但 Redis 连不上时，服务本身也基本不可用，
 > 此时发布判定失败是正确的。若某次确实要在无 Redis 的情况下发版，把
 > `AUTH_HEALTH_URL` 指到 `/actuator/health/liveness`（只判进程存活）。
