@@ -53,11 +53,11 @@
             source: ./target/Auth-Server.jar
             target: /home/idp/auth_server/
             script:
-              - cd /opt/1panel/runtime/java/idp_auth_server/
-              - docker compose up -d --force-recreate
-              # 重启后必须探活：原来只要 rsync 成功就算发布成功，
-              # jar 启动失败（配置错、端口冲突、连不上库）也会显示绿灯。
-              - HEALTH_URL=$AUTH_HEALTH_URL
-              - test -n "$AUTH_HEALTH_URL" || HEALTH_URL=http://127.0.0.1:18090/actuator/health
-              - for i in $(seq 1 40); do curl -fsS "$HEALTH_URL" 2>/dev/null | grep -q '"UP"' && { echo "health UP $HEALTH_URL"; exit 0; }; sleep 3; done
-              - echo "健康检查失败，容器未就绪 $HEALTH_URL"; docker compose ps; docker logs --tail 120 idp_auth_server; exit 1
+              - cd /opt/1panel/runtime/java/idp_auth_server/ && docker compose up -d --force-recreate
+              # 探活必须写成「单行、无 shell 变量」。这一段由 CNB 通过 SSH 在服务器上执行，
+              # 跨行的变量在这里会被替换成空串：曾经写成 HEALTH_URL=... 再在下一行引用，
+              # 实测拿到的是空 URL，curl 报 "missing URL"、连试 40 次、等满 120 秒，
+              # 于是发布被判失败——而应用其实 8 秒就已经 Started。
+              # 成功时落一个 .last-health-ok，事后可以直接在服务器上核对探活是否真跑过。
+              - for i in $(seq 1 40); do curl -fsS http://127.0.0.1:18090/actuator/health 2>/dev/null | grep -q '"UP"' && { date -Is > /home/idp/auth_server/.last-health-ok; echo "health UP"; exit 0; }; sleep 3; done
+              - echo "健康检查失败（40 次 x 3 秒未拿到 UP）"; cd /opt/1panel/runtime/java/idp_auth_server/ && docker compose ps; docker logs --tail 120 idp_auth_server; exit 1
