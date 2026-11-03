@@ -44,3 +44,6 @@ target/
 
 ### 前端构建产物（EdgeOne Pages 部署用，不进 jar） ###
 dist/
+
+### EdgeOne 部署工具缓存（不进仓库）###
+.edgeone/
