@@ -7,9 +7,12 @@
 #    分支同步出问题也不会挡住版本发布；
 # 3. 出错时的报错是 git 原文，比插件包一层更容易定位。
 #
+# 同理，**标签推送本身也不该拖垮整次同步**：CNB 会把附注标签存成轻量标签，
+# 再推同名标签就会报 "already exists"（实测 2026-11-03 触发过一次）。所以这一步
+# 只告警不失败，分支同步照常执行。
+#
 # 分支同步仍是普通 push（非强制）：一旦 CNB 侧有独立提交就会失败并报警，
 # 这是刻意的 —— 让分叉暴露出来，而不是用 force 把对面的提交悄悄冲掉。
-# 真需要以 GitHub 为准重置时，按下文「修复分叉」手动执行一次。
 name: Sync to CNB
 
 on:
@@ -33,12 +36,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 1) 同步标签（决定是否发布版本）
+      - name: 1) 同步标签（尽力而为，不阻断后续步骤）
         env:
           GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
         run: |
-          set -euo pipefail
-          git push "https://cnb:${GIT_PASSWORD}@cnb.cool/civer/Quisperc/AIDP.git" --tags
+          URL="https://cnb:${GIT_PASSWORD}@cnb.cool/civer/Quisperc/AIDP.git"
+          # 不用 set -e：单个标签冲突只告警，不能让整次同步失败
+          if ! git push "$URL" --tags; then
+            echo "::warning::批量推送标签时部分被拒（通常是对端已存在同名标签且内容不同），继续"
+          fi
+          # 本次若由打标签触发，再单独确认这个标签是否真的到了对端
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            git ls-remote --tags "$URL" "refs/tags/${GITHUB_REF_NAME}" | grep -q . \
+              || echo "::warning::标签 ${GITHUB_REF_NAME} 未能在 CNB 找到，请手动核对"
+          fi
 
       - name: 2) 同步分支（镜像主干，不强制覆盖）
         env:
