@@ -12,4 +12,14 @@ WORKDIR /build_cache
 # 先只拷贝依赖定义文件，保证「改代码」不会让这一层失效
 COPY pom.xml .
 
-RUN mvn -B -q dependency:go-offline
+# 对 Maven Central 限流做重试。
+# 2026-11-04 的 auth-v2.6.0 发布就是卡在这一行：
+#   Could not transfer ... spring-boot-starter-parent:4.0.3 from/to central:
+#   status code: 429, reason phrase: Too Many Requests
+# 这不是依赖或代码问题，而是 CI runner 出口 IP 被中央仓库限流；
+# 一次失败就让整个 tag 构建判死，代价太大。失败后间隔重试两次即可覆盖绝大多数瞬时 429。
+RUN mvn -B -q dependency:go-offline \
+ || (echo "依赖预取失败（常见原因：Maven Central 429 限流），30 秒后重试" && sleep 30 \
+     && mvn -B -q dependency:go-offline) \
+ || (echo "第二次仍失败，60 秒后再试一次" && sleep 60 \
+     && mvn -B -q dependency:go-offline)
