@@ -18,8 +18,7 @@
     *   **端口**: `8081`
     *   **职责**: 系统管理员后台。通过 OAuth2 登录，使用 **Spring HTTP Service Client（基于 RestClient 的声明式接口）** 调用 Auth Server API 管理用户和客户端。
 
-3.  **接入示例子系统 (Client Template)** - `client-template`
-    *   **端口**: `8089` (默认)
+3.  **自建子系统** - 不在本仓库内，接入方式见 [`docs/接入规范.md`](docs/接入规范.md)
     *   **职责**: 为新业务系统提供“开箱即用”的标准接入模板。
 
 ---
@@ -88,9 +87,7 @@ mvn spring-boot:run -pl .
 cd client-usermanage
 mvn spring-boot:run
 
-# 3. 启动示例客户端 (8089)
-cd client-template
-mvn spring-boot:run
+# 3. 自建子系统：按 docs/接入规范.md 接入后自行启动
 ```
 
 ---
@@ -125,7 +122,7 @@ mvn spring-boot:run
 
 ### 4. 配置与隐私保护
 *   **Auth Server**：根目录 `application.yml` 通过 `spring.config.import: optional:file:./application-secret.yml` 加载 `application-secret.yml`。其中应覆盖：数据库连接、`spring.security.oauth2.authorizationserver.issuer`（显式指定 OIDC Issuer，保证 Discovery 与 Token 中 `iss` 一致）、`app.base-url` 及 `app.auth.initial-client` 等生产用值。
-*   **Client（client-usermanage / client-template）**：各模块的 `application.yml` 同样支持 `optional:file:./application-secret.yml`。secret 中只需覆盖 **client-secret** 和 **app.auth-server-url / app.base-url**，其余 OAuth2 结构沿用主配置，避免重复。
+*   **Client（client-usermanage 及自建子系统）**：各模块的 `application.yml` 同样支持 `optional:file:./application-secret.yml`。secret 中只需覆盖 **client-secret** 和 **app.auth-server-url / app.base-url**，其余 OAuth2 结构沿用主配置，避免重复。
 *   所有 `application-secret.yml` 均已加入 `.gitignore`，不会提交到 Git。
 
 ### 5. 日志与排查
@@ -139,12 +136,12 @@ mvn spring-boot:run
 ## 📁 目录结构
 
 *   `src/main/java/cn/civer/authserver` - **认证中心源码**
-*   `client-usermanage/` - **管理后台源码**
-*   `client-template/` - **标准客户端模板** (复制此目录即可开发新系统)
+*   `client-usermanage/` - **管理后台源码**（同时是子系统接入的参考实现）
+*   `docs/接入规范.md` - **子系统接入说明**（原 client-template 模板工程已移除）
 *   `scripts/` - **SQL 脚本与工具类**
     *   `ClientSqlGenerator.java`: 交互式 SQL 生成器
     *   `insert_clients.sql`: 初始数据备份
-*   `application-secret.yml` - (需手动创建) 根目录为 Auth Server 敏感配置；`client-usermanage/`、`client-template/` 下可各有自己的 `application-secret.yml`，仅覆盖 client-secret 与 app 地址即可。
+*   `application-secret.yml` - (需手动创建) 根目录为 Auth Server 敏感配置；`client-usermanage/` 下可有自己的 `application-secret.yml`，仅覆盖 client-secret 与 app 地址即可。自建子系统同理。
 
 ---
 
@@ -192,7 +189,7 @@ APP_BASE_URL=https://idp.civer.cn
 APP_AUTH_SERVER_URL=https://idp.civer.cn
 APP_BASE_URL=https://um.civer.cn
 
-# 其他 Client（如 client-template 或自建子系统）
+# 自建子系统
 APP_AUTH_SERVER_URL=https://idp.civer.cn
 APP_BASE_URL=https://c1.civer.cn   # 该子系统对外访问地址
 ```
@@ -279,50 +276,28 @@ https://c1.civer.cn/login/oauth2/code/oidc-client
 
 ---
 
-## 📦 快速接入 (Client Template)
+## 📦 子系统接入
 
-为了简化新子系统的接入流程，我们提供了一个开箱即用的模板工程：`client-template`。
+新系统接入 SSO 的完整步骤见 **[`docs/接入规范.md`](docs/接入规范.md)**，
+包含依赖、`application.yml` 模板、SecurityConfig 与后端登出端点的可直接复制的代码，
+以及接入自检清单。
 
-### 模板结构
+接入流程摘要：
 
-| 文件 | 说明 |
-|------|------|
-| `ClientApplication.java` | Spring Boot 启动类 |
-| `config/SecurityConfig.java` | OAuth2 安全配置（登录、角色映射、退出）|
-| `controller/HomeController.java` | 首页控制器（展示用户信息）|
-| `controller/LoginController.java` | 登录页（已登录自动跳转）|
-| `controller/SsoLogoutController.java` | SSO 广播退出接收端点 |
-| `templates/index.html` | 首页模板 |
-| `templates/login.html` | 登录页模板 |
+1. **先在认证中心注册客户端**：推荐用管理后台 `http://127.0.0.1:8081/admin/clients` 新增，
+   或调用 `POST /api/clients`（均需 `ROLE_ADMIN`）。
+   需要 Client ID、Secret、Redirect URI、Post Logout URI。**新建客户端默认开启 PKCE**，
+   仅当第三方系统确实不支持时才关闭。
+2. **子系统加依赖并配置**：`application.yml` 中设置端口、唯一 Cookie 名、client-id，
+   敏感值放 `application-secret.yml`（已 gitignore，不会打进 jar）。
+3. **实现后端登出端点** `POST /api/sso-logout`，并注册 `SessionRegistry` ——
+   否则用户在 A 系统登出后，B 系统的会话仍然存活。
+4. **启动**：`mvn spring-boot:run`
 
-### 预置功能
-1.  **OAuth2 登录**: 自动对接 Auth Server
-2.  **自定义登录页**: 已登录用户访问 `/login` 自动跳转首页；登录失败时区分「应用配置错误」（如客户端密钥错误，`?error=client_config`）与其它认证失败，展示对应提示。
-3.  **SSO 退出**: 支持单客户端退出和全局广播退出
-4.  **防 Cookie 冲突**: 独立的 Session Cookie 名称
-
-### 接入步骤 (5分钟完成)
-
-1.  **复制项目**: 复制 `client-template` 文件夹，重命名为您的新项目名（例如 `client-oa`）
-
-2.  **修改 `pom.xml`**: 将 `artifactId` 和 `name` 修改为 `client-oa`
-
-3.  **修改配置**: 在 `application.yml` 中设置端口、cookie 名称、client-id 等；敏感与生产地址放在同目录下的 `application-secret.yml`（需自行创建，不会打入 jar）。Client 只需在 secret 中覆盖 **client-secret** 以及 **app.auth-server-url / app.base-url** 即可。
-    | 配置项 | 说明 / 示例值 |
-    |--------|----------------|
-    | `server.port` | 本服务端口，如 `8082` |
-    | `server.servlet.session.cookie.name` | 唯一 Cookie 名，如 `OA_SESSIONID` |
-    | `spring.security.oauth2.client.registration.oidc-client.client-id` | 与 Auth Server 注册一致，如 `oa-system` |
-    | `spring.security.oauth2.client.registration.oidc-client.client-secret` | 在 secret 中覆盖，不提交仓库 |
-    | `app.auth-server-url` | 认证中心地址，如 `https://idp.civer.cn`，可用 `APP_AUTH_SERVER_URL` 覆盖 |
-    | `app.base-url` | 本系统对外地址，如 `http://127.0.0.1:8082`，可用 `APP_BASE_URL` 覆盖 |
-
-4.  **注册客户端**: 在 Auth Server 中注册该客户端（Client ID、Secret、Redirect URI、Post Logout URI、是否要求 PKCE 等）
-    *   **推荐**: 使用管理后台 `http://127.0.0.1:8081/admin/clients` 进行新增；后续可在同一页编辑、删除。
-    *   **默认策略**: 新建客户端默认开启 PKCE；若第三方系统不支持，再按需取消。
-    *   **手动**: 运行 `scripts/ClientSqlGenerator.java` 生成 SQL
-
-5.  **启动开发**: `mvn spring-boot:run` 即可加入 SSO 生态
+> 原 `client-template` 模板工程已移除：它与 `client-usermanage` 存在大量重复代码
+> （`SecurityConfig`、`SsoLogoutController` 近乎逐行相同），维护两份反而容易走样。
+> 现以文档 + 管理后台作为参考实现（`client-usermanage` 本身就是按这套规范接入的）。
+> 需要脚手架时，可直接复制 `client-usermanage` 后删掉管理相关页面。
 
 ---
 
