@@ -15,6 +15,14 @@ spring:
   sql:
     init:
       mode: never
+  # 显式锁定单机缓存：classpath 里一旦有 Redis，Spring Boot 的自动推断会选
+  # RedisCacheManager，而测试环境没有 Redis 服务，缓存读写会落空。
+  # 主配置已用 CACHE_TYPE 默认 simple，但 test 配置整体覆盖，须再声明一次。
+  cache:
+    type: simple
+    cache-names: ssoAllowedHosts
+  session:
+    store-type: none
   jpa:
     hibernate:
       # 表结构已由 Flyway 建立，Hibernate 不再介入

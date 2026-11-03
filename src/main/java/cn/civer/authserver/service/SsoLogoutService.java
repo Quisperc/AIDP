@@ -44,12 +44,19 @@ public class SsoLogoutService {
 
 	private static final Logger log = LoggerFactory.getLogger(SsoLogoutService.class);
 
-	/** 已注册客户端 host 白名单的缓存时长：登出是高频操作，避免每次全表扫描 */
-	private static final long HOST_CACHE_TTL_MS = Duration.ofMinutes(5).toMillis();
+	private static final String HOST_CACHE = "ssoAllowedHosts";
 
 	private final JdbcTemplate jdbcTemplate;
 	private final AuthorizationServerSettings authorizationServerSettings;
 	private final JwtEncoder jwtEncoder;
+	/*
+	 * 用 CacheManager 手动读写，而不是 @Cacheable：
+	 * isAllowedLogoutRedirect() -> allowedHosts() 是同一个类里的内部调用，
+	 * 注解走 Spring AOP 代理会静默不生效。手动调用不受代理限制。
+	 * 单机时是 ConcurrentMap（CACHE_TYPE=simple），多实例配 Redis 后
+	 * 变成共享缓存，任一实例 invalidate 都会让其它实例立即失效。
+	 */
+	private final org.springframework.cache.CacheManager cacheManager;
 
 	/** 广播用 HTTP 客户端：复用连接与线程池，避免每次登出新建且无超时地挂起 */
 	private final HttpClient httpClient;
@@ -64,9 +71,11 @@ public class SsoLogoutService {
 	public SsoLogoutService(JdbcTemplate jdbcTemplate,
 			JWKSource<SecurityContext> jwkSource,
 			AuthorizationServerSettings authorizationServerSettings,
+			org.springframework.cache.CacheManager cacheManager,
 			@Value("${app.sso.client-logout-path:/api/sso-logout}") String clientLogoutPath) {
 		this.jdbcTemplate = jdbcTemplate;
 		this.authorizationServerSettings = authorizationServerSettings;
+		this.cacheManager = cacheManager;
 		this.jwtEncoder = new NimbusJwtEncoder(jwkSource);
 		this.clientLogoutPath = clientLogoutPath.startsWith("/") ? clientLogoutPath : "/" + clientLogoutPath;
 		this.broadcastExecutor = Executors.newFixedThreadPool(4, runnable -> {
@@ -144,10 +153,12 @@ public class SsoLogoutService {
 		}
 	}
 
-	/** 客户端注册信息变更后调用，让 host 白名单缓存立即失效 */
+	/** 客户端注册信息变更后调用，让 host 白名单缓存立即失效（Redis 模式下对所有实例生效） */
 	public void invalidateHostCache() {
-		this.cachedAllowedHosts = null;
-		this.hostsLoadedAt = 0;
+		org.springframework.cache.Cache cache = cacheManager.getCache(HOST_CACHE);
+		if (cache != null) {
+			cache.clear();
+		}
 	}
 
 	/**
@@ -241,40 +252,44 @@ public class SsoLogoutService {
 				});
 	}
 
-	/** 带 TTL 的 host 白名单：登出是高频操作，原先每次调用都要全表扫描并重新解析 */
+	/** host 白名单：登出是高频操作，不能每次都全表扫描并重新解析 */
+	@SuppressWarnings("unchecked")
 	private Set<String> allowedHosts() {
-		Set<String> cached = this.cachedAllowedHosts;
-		long now = System.currentTimeMillis();
-		if (cached != null && (now - hostsLoadedAt) < HOST_CACHE_TTL_MS) {
-			return cached;
+		org.springframework.cache.Cache cache = cacheManager.getCache(HOST_CACHE);
+		if (cache != null) {
+			Set<String> cached = cache.get("hosts", Set.class);
+			if (cached != null) {
+				return cached;
+			}
 		}
+		Set<String> hosts = loadAllowedHosts();
+		if (cache != null) {
+			cache.put("hosts", hosts);
+		}
+		return hosts;
+	}
+
+	private Set<String> loadAllowedHosts() {
 		Set<String> hosts = new HashSet<>();
-		try {
-			for (Map<String, Object> row : jdbcTemplate.queryForList("SELECT redirect_uris FROM oauth2_registered_client")) {
-				Object val = row.get("redirect_uris");
-				if (val == null) {
+		for (Map<String, Object> row : jdbcTemplate.queryForList("SELECT redirect_uris FROM oauth2_registered_client")) {
+			Object val = row.get("redirect_uris");
+			if (val == null) {
+				continue;
+			}
+			for (String one : val.toString().split(",")) {
+				if (one.isBlank()) {
 					continue;
 				}
-				for (String one : val.toString().split(",")) {
-					if (one.isBlank()) {
-						continue;
+				try {
+					URI u = new URI(one.trim());
+					if (u.getHost() != null) {
+						hosts.add(u.getHost().toLowerCase());
 					}
-					try {
-						URI u = new URI(one.trim());
-						if (u.getHost() != null) {
-							hosts.add(u.getHost().toLowerCase());
-						}
-					} catch (Exception ignored) {
-						// 忽略非法 URI
-					}
+				} catch (Exception ignored) {
+					// 忽略非法 URI
 				}
 			}
-		} catch (Exception e) {
-			log.error("[sso-logout] failed to refresh allowed hosts cache", e);
-			return cached != null ? cached : Set.of();
 		}
-		this.cachedAllowedHosts = hosts;
-		this.hostsLoadedAt = now;
 		return hosts;
 	}
 }
