@@ -10,13 +10,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -27,7 +31,9 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,7 +44,7 @@ import java.util.stream.Collectors;
 // jwkSource 会查 oauth2_signing_key，必须等 Flyway 把表建好。
 // Spring Boot 4 已无 FlywayAutoConfiguration，迁移由 FlywayConfig 显式接管，
 // 这里的依赖顺序需要自己声明。
-@org.springframework.context.annotation.DependsOn("flyway")
+@DependsOn("flyway")
 public class TokenConfig {
 
 	private static final Logger log = LoggerFactory.getLogger(TokenConfig.class);
@@ -175,21 +181,18 @@ public class TokenConfig {
 	 * /api/** 的方法级 ROLE_ADMIN 校验一律返回 403。这里把两端接上。
 	 */
 	@Bean
-	public org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
-			jwtAuthenticationConverter() {
-		var scopes = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
-		var converter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+	public JwtAuthenticationConverter jwtAuthenticationConverter() {
+		var scopes = new JwtGrantedAuthoritiesConverter();
+		var converter = new JwtAuthenticationConverter();
 		converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-			java.util.List<GrantedAuthority> authorities =
-					new java.util.ArrayList<>(scopes.convert(jwt));
+			List<GrantedAuthority> authorities = new ArrayList<>(scopes.convert(jwt));
 			Object roles = jwt.getClaims().get("roles");
-			if (roles instanceof java.util.Collection<?> values) {
+			if (roles instanceof Collection<?> values) {
 				for (Object value : values) {
-					authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(
-							value.toString()));
+					authorities.add(new SimpleGrantedAuthority(value.toString()));
 				}
 			} else if (roles instanceof String value) {
-				authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority(value));
+				authorities.add(new SimpleGrantedAuthority(value));
 			}
 			return authorities;
 		});
@@ -197,18 +200,15 @@ public class TokenConfig {
 	}
 
 	/**
-	 * Customize JWT to include roles
+	 * 把登录用户的权限写进 JWT 的 roles claim。
+	 *
+	 * 只有 UserDetails 分支：Spring Security 的 User 实现本身也是 UserDetails，
+	 * 原先并列的第二个 instanceof 分支永远走不到，已删除。
 	 */
 	@Bean
 	public OAuth2TokenCustomizer<JwtEncodingContext> jwtTokenCustomizer() {
-		return (context) -> {
+		return context -> {
 			if (context.getPrincipal().getPrincipal() instanceof UserDetails user) {
-				Set<String> authorities = user.getAuthorities().stream()
-						.map(GrantedAuthority::getAuthority)
-						.collect(Collectors.toSet());
-				context.getClaims().claim("roles", authorities);
-			} else if (context.getPrincipal()
-					.getPrincipal() instanceof org.springframework.security.core.userdetails.User user) {
 				Set<String> authorities = user.getAuthorities().stream()
 						.map(GrantedAuthority::getAuthority)
 						.collect(Collectors.toSet());

@@ -65,9 +65,6 @@ public class SsoLogoutService {
 	/** 客户端 logout 端点路径，各子系统需暴露该端点接收 logout_token */
 	private final String clientLogoutPath;
 
-	private volatile Set<String> cachedAllowedHosts;
-	private volatile long hostsLoadedAt;
-
 	public SsoLogoutService(JdbcTemplate jdbcTemplate,
 			JWKSource<SecurityContext> jwkSource,
 			AuthorizationServerSettings authorizationServerSettings,

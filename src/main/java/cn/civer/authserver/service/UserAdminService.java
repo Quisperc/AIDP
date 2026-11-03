@@ -40,6 +40,12 @@ public class UserAdminService {
 				.toList();
 	}
 
+	public UserResponse get(Long id) {
+		return userRepository.findById(id)
+				.map(UserResponse::from)
+				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
+	}
+
 	@Transactional
 	public UserResponse create(User request) {
 		if (!StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {

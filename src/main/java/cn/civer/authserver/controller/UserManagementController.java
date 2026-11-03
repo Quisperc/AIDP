@@ -34,6 +34,13 @@ public class UserManagementController {
 		return userAdminService.listUsers();
 	}
 
+	/** 单个用户：管理端编辑页与「更新前先读最新值」都走这里，避免为了一个 ID 拉全表 */
+	@GetMapping("/{id}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public UserResponse getUser(@PathVariable Long id) {
+		return userAdminService.get(id);
+	}
+
 	@PostMapping
 	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 	public ResponseEntity<UserResponse> createUser(@RequestBody User user) {

@@ -87,6 +87,8 @@ public class SecurityConfig {
 	public SecurityFilterChain filterChain(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
 		http
 				.authorizeHttpRequests(authorize -> authorize
+						// 健康检查探针必须匿名可达，否则容器编排与发布流水线拿到 401/403
+						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						.requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
 						.requestMatchers("/api/me").authenticated()
 						// 认证中心的后端登出回调，拿不到本站 cookie，必须放行

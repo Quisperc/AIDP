@@ -20,6 +20,9 @@ public interface UserServiceClient {
 	@GetExchange("/users")
 	List<UserService.UserDto> getUsers();
 
+	@GetExchange("/users/{id}")
+	UserService.UserDto getUser(@PathVariable("id") Long id);
+
 	@PostExchange("/users")
 	UserService.UserDto createUser(@RequestBody UserService.UserDto user);
 

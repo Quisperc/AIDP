@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -32,13 +33,14 @@ public class AuthorizationServerConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http,
-			org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
-					jwtAuthenticationConverter) throws Exception {
+			JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
 		http
 				.authorizeHttpRequests((authorize) -> authorize
 						// 健康检查必须匿名可达，否则容器编排无法探活（会拿到 401/302）
 						.requestMatchers("/", "/login", "/error", "/favicon.ico", "/css/**", "/js/**", "/images/**",
 								"/actuator/health", "/actuator/health/**").permitAll()
+						// /api/** 的资源权限由各 Controller 上的 @PreAuthorize 细分，
+						// 这里只要求请求带 openid scope 的合法令牌（粗粒度门槛）。
 						.requestMatchers("/api/**").hasAuthority("SCOPE_openid")
 						.anyRequest().authenticated())
 				.formLogin((form) -> form

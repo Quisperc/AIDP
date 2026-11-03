@@ -57,6 +57,19 @@ spring:
           auth-server:
             issuer-uri: ${app.auth-server-url} # 【核心】引用下方定义的统一地址
 
+# 健康检查：发布流水线在容器重启后轮询 /actuator/health，拿不到 UP 就判定发布失败。
+# 只暴露 health，且匿名访问仅返回 UP/DOWN，不带组件细节。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
 app:
   # 认证中心对外地址（issuer-uri / OIDC 发现 / 登录跳转），必须是公网可达的 https 地址
   auth-server-url: ${APP_AUTH_SERVER_URL:http://127.0.0.1:8080}
