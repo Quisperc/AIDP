@@ -36,7 +36,8 @@ function startLogin() {
 
 <style scoped>
 .login-screen {
-  min-height: 100vh;
+  /* 配合 App.vue 的 flex column：占满 main 剩余空间，让页脚自然落在底部而不需要滚动 */
+  flex: 1;
   display: grid;
   place-items: center;
   padding: var(--sp-6);

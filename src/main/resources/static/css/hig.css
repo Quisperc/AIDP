@@ -132,6 +132,10 @@ body {
   color: var(--label);
   background: var(--bg-grouped);
   min-height: 100vh;
+  /* 页面结构：page-main 占据剩余空间，页脚自然落在底部。
+     原先 page-main 用 min-height:100vh，与独立 footer 叠加会把整页撑高、出现滚动条。 */
+  display: flex;
+  flex-direction: column;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -160,8 +164,40 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  flex: 1;
   padding: var(--sp-6);
+}
+
+/* 图标容器里是内联 <svg viewBox="0 0 24 24">，不限尺寸时会按默认 300x150 撑爆卡片 */
+.login-icon svg,
+.consent-icon svg,
+.error-icon svg,
+.success-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+.logo-container svg {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+}
+
+.feature-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* SVG 若带 fill 属性，用 currentColor 让它继承容器的白色 */
+.login-icon svg path,
+.consent-icon svg path,
+.error-icon svg path,
+.success-icon svg path,
+.logo-container svg path,
+.feature-icon svg path {
+  fill: currentColor;
 }
 
 /* ---------------- 卡片容器 ---------------- */
@@ -484,7 +520,8 @@ h2 {
 
 /* ---------------- 页脚 ---------------- */
 .site-footer {
-  padding: var(--sp-6);
+  flex-shrink: 0;
+  padding: var(--sp-5) var(--sp-6);
   text-align: center;
   font-size: var(--fs-footnote);
   color: var(--label-tertiary);

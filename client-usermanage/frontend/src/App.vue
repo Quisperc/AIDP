@@ -7,6 +7,12 @@ import { useAuth } from './stores/auth'
 const { authenticated, username, isAdmin, load, logout } = useAuth()
 const route = useRoute()
 
+// 备案信息：与 auth-server 的 app.footer.* 保持一致，修改时两边要同步
+const ICP_TEXT = '渝ICP备2026020534号'
+const ICP_URL = 'https://beian.miit.gov.cn/'
+const POLICE_TEXT = '渝公网安备50019002505695号'
+const POLICE_URL = 'https://www.beian.gov.cn/portal/registerSystemInfo?recordcode=50019002505695'
+
 const bootError = ref<string | null>(null)
 const theme = ref<'auto' | 'light' | 'dark'>(
   (localStorage.getItem('aidp-theme') as 'auto' | 'light' | 'dark') ?? 'auto',
@@ -103,6 +109,13 @@ onMounted(async () => {
       </div>
       <RouterView v-else />
     </main>
+
+    <!-- 备案信息：所有页面（含未登录的登录页）都要展示，与认证中心页脚保持一致 -->
+    <footer class="app-footer">
+      <a :href="ICP_URL" target="_blank" rel="noopener noreferrer">{{ ICP_TEXT }}</a>
+      <span class="footer-sep">|</span>
+      <a :href="POLICE_URL" target="_blank" rel="noopener noreferrer">{{ POLICE_TEXT }}</a>
+    </footer>
   </div>
 </template>
 
@@ -115,5 +128,33 @@ onMounted(async () => {
 
 main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-footnote);
+  color: var(--label-tertiary);
+  border-top: 1px solid var(--separator);
+  background: var(--bg-primary);
+}
+
+.app-footer a {
+  color: var(--label-tertiary);
+}
+
+.app-footer a:hover {
+  color: var(--color-blue);
+  opacity: 1;
+}
+
+.footer-sep {
+  opacity: 0.5;
 }
 </style>
