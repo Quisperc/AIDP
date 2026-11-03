@@ -47,3 +47,6 @@ dist/
 
 ### EdgeOne 部署工具缓存（不进仓库）###
 .edgeone/
+
+### EdgeOne Pages 部署产物（纯静态，不进仓库）###
+pages-out/
