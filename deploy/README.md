@@ -49,8 +49,10 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 ## 三、容器内必须存在的环境变量
 
 写在 `/opt/1panel/runtime/java/idp_auth_server/.env`（`run.sh` 会 source 它）。
-**这是唯一的配置来源**：`/home/idp/auth_server/application-secret.yml` 已于 2026-11-04 停用
-（外部文件优先级高于 jar 内配置，会静默覆盖数据源与代理策略，且环境变量盖不过它）。
+**这是唯一的配置来源**：应用不加载任何外部配置文件（`spring.config.import` 已于
+2026-11-04 移除，`/home/idp/auth_server/application-secret.yml` 已改名为
+`.disabled-*`）。历史上正是这个外部文件的优先级高于 jar 内配置、且盖过 `DB_URL`
+环境变量，静默改写了数据源，才导致那次故障。
 完整变量表见 `docs/配置参考.md`。
 
 ```

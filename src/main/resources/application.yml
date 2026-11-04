@@ -22,16 +22,14 @@ server:
         same-site: lax
 
 spring:
-  config:
-    # 可选的本地开发差异文件（已 gitignore；optional 表示不存在也能启动）。
-    # 部署一律用环境变量：该文件优先级高于本文件，若写死 datasource / issuer 会静默覆盖
-    # 主配置，且环境变量盖不过它。生产已停用，详见 docs/配置参考.md 第一节。
-    import: optional:file:./application-secret.yml
+  # 刻意不声明 spring.config.import 外部文件：本应用的配置只有「环境变量 + 本文件」两层。
+  # 曾经用 optional:file:./application-secret.yml 做本地差异文件，代价是同目录里一个
+  # 遗留文件就能静默改写 spring.datasource.*，且它优先于 ${DB_URL} 这类占位符，
+  # 排查时几乎想不到（2026-11-04 生产事故成因）。本地开发同样用环境变量或 IDE 运行配置。
   application:
     name: auth-server
   datasource:
-    # 不在主配置里放明文默认口令；本地由 application-secret.yml（已 gitignore）提供，
-    # 部署由环境变量覆盖。
+    # 不在主配置里放明文默认口令；本地与生产都由环境变量提供。
     url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb}
     username: ${DB_USERNAME:username}
     password: ${DB_PASSWORD:}
@@ -142,6 +140,6 @@ app:
     # 空库时是否写入演示账号 admin / user。
     # 默认关闭：漏配环境变量的代价是「没人能登录」（立刻发现），
     # 而默认开启的代价是「带着 admin/password 上线」（没人会发现）。
-    # 本地开发在 application-secret.yml 里设成 true 即可。
+    # 本地开发设 APP_BOOTSTRAP_SEED_DEMO_USERS=true 即可。
     seed-demo-users: ${APP_BOOTSTRAP_SEED_DEMO_USERS:false}
     demo-user-password: ${APP_BOOTSTRAP_DEMO_USER_PASSWORD:password}

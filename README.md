@@ -49,9 +49,9 @@ docker compose up -d                    # postgres:18，仅监听 127.0.0.1:5432
 mvn spring-boot:run
 ```
 
-数据源全部由环境变量提供；`application-secret.yml`（已 gitignore）只放本地便利开关，
-不写任何真实凭据。空库想要演示账号时，在该文件保留
-`app.bootstrap.seed-demo-users: true`，用 `admin` / `password` 登录。
+数据源、issuer 等全部由环境变量提供，仓库内不放任何凭据文件。空库想要演示账号时，
+启动前设 `APP_BOOTSTRAP_SEED_DEMO_USERS=true`，用 `admin` / `password` 登录
+（口令可用 `APP_BOOTSTRAP_DEMO_USER_PASSWORD` 改写）。
 
 > Spring Boot 4 起，classpath 上有 `spring-boot-starter-session-data-redis` 就会自动把
 > HttpSession 存进 Redis（已移除 `spring.session.store-type`）。本地没有 Redis 时追加：
