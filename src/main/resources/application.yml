@@ -23,7 +23,9 @@ server:
 
 spring:
   config:
-    # 敏感配置（数据库口令等）放在同目录的 application-secret.yml，已 gitignore
+    # 可选的本地开发差异文件（已 gitignore；optional 表示不存在也能启动）。
+    # 部署一律用环境变量：该文件优先级高于本文件，若写死 datasource / issuer 会静默覆盖
+    # 主配置，且环境变量盖不过它。生产已停用，详见 docs/配置参考.md 第一节。
     import: optional:file:./application-secret.yml
   application:
     name: auth-server

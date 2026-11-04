@@ -49,14 +49,37 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 ## 三、容器内必须存在的环境变量
 
 写在 `/opt/1panel/runtime/java/idp_auth_server/.env`（`run.sh` 会 source 它）。
+**这是唯一的配置来源**：`/home/idp/auth_server/application-secret.yml` 已于 2026-11-04 停用
+（外部文件优先级高于 jar 内配置，会静默覆盖数据源与代理策略，且环境变量盖不过它）。
+完整变量表见 `docs/配置参考.md`。
 
 ```
-APP_BASE_URL=https://idp.civer.cn      # 决定 OIDC issuer，配错会导致子系统验签失败
-APP_BOOTSTRAP_SEED_DEMO_USERS=false    # 生产不要演示账号
-CACHE_TYPE=redis                       # 登录失败计数跨实例共享；会话无需开关，随 starter 自动启用
-REDIS_HOST=1Panel-redis-ghWF
-REDIS_PASSWORD=<从 Redis 容器取>
+DB_URL="jdbc:postgresql://1Panel-postgresql-fViT:5432/idp_auth_db"
+DB_USERNAME="idp_auth_db"
+DB_PASSWORD="<强口令>"
+APP_BASE_URL="https://idp.civer.cn"    # 决定 OIDC issuer，配错会导致子系统验签失败
+APP_BOOTSTRAP_SEED_DEMO_USERS="false"  # 生产不要演示账号
+CACHE_TYPE="redis"                     # 登录失败计数跨实例共享；会话随 starter 自动启用，无开关
+REDIS_HOST="1Panel-redis-ghWF"
+REDIS_PASSWORD="<从 Redis 容器取>"
 ```
+
+> ⚠️ **1Panel 的坑（2026-11-04 实际踩过）**：面板生成的变量形如 `KEY="value"`，**不带 `export`**。
+> 普通 shell 赋值不会传给子进程，`java -jar` 一个环境变量都读不到 —— 现象是 Redis 回落
+> `localhost:6379` 连不上、`/actuator/health` 变 DOWN，而数据库/issuer 靠旧的外部 secret 文件兜着。
+> 因此本目录的 `run.sh` 必须用 `set -a` 包裹 `source`：
+>
+> ```bash
+> #!/bin/bash
+> set -a
+> source /.env
+> set +a
+> eval $EXEC_SCRIPT
+> ```
+>
+> 升级 Java 版本或在面板里编辑运行环境后，1Panel 可能重写 `.env` / `run.sh`，
+> **改完必须复核** `docker exec idp_auth_server sh -c 'tr "\0" "\n" < /proc/<java-pid>/environ'`
+> 里是否还有 `DB_*` / `REDIS_*` / `APP_BASE_URL`，再用 `/actuator/health` 确认。
 
 > `INITIAL_CLIENT_SECRET` 已废弃：客户端不再由代码预置，全部在管理台注册。
 
