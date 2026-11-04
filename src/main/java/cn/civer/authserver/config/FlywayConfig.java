@@ -23,6 +23,11 @@ import javax.sql.DataSource;
  *
  * Dev 阶段所有库都由 Flyway 从零管理，baseline-on-migrate 默认关闭：
  * 不再兼容「有表但没有 flyway_schema_history」的历史库。
+ *
+ * 重要：db/migration 下**已应用过的脚本绝不可再修改**（哪怕只改注释）。
+ * Flyway 会对已应用迁移做 checksum 校验，改动一个字符都会让启动直接失败；
+ * 本地集成测试用的是全新 H2 库，暴露不了这个问题。需要修正时新增版本化迁移，
+ * 或对目标库执行 flyway repair 显式对齐历史，并在发布后核对启动日志。
  */
 @Configuration
 @ConditionalOnProperty(name = "spring.flyway.enabled", havingValue = "true", matchIfMissing = true)
