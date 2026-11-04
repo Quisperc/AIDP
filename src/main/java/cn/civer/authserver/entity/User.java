@@ -14,9 +14,10 @@ import java.util.UUID;
  * 都会把密码哈希写进日志；它生成的 equals/hashCode 覆盖全部字段，也不适合 JPA 实体。
  * 对外响应一律使用 {@link cn.civer.authserver.dto.UserResponse}（不含 password）。
  *
- * public_id 是 OIDC 的 sub，也是 oauth2_authorization.principal_name 的取值：
- * 创建时一次性生成、永不改变。username 只是可变的登录名，昵称只用于展示；
- * 三者分离后，改名不会影响客户端按 (iss, sub) 建立的账号关联。
+ * public_id 是 OIDC 的 sub（创建时一次性生成、永不改变）；username 只是可变的登录名，
+ * 昵称只用于展示。注意库内 oauth2_authorization / oauth2_authorization_consent 的
+ * principal_name 仍存登录名：改名时 AccountService 会按旧名吊销全部授权并强制重登，
+ * 之后再由新名重建记录。客户端按 (iss, sub) 关联账号，因此改名不会造成账号失配。
  */
 @Entity
 @Table(name = "users")
@@ -29,7 +30,7 @@ public class User {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	/** 不可变主体标识（UUID），OIDC sub / principal_name 均取此值 */
+	/** 不可变主体标识（UUID），仅作为 OIDC 的 sub；库内 principal_name 仍用登录名 */
 	@Column(unique = true)
 	private String publicId;
 
@@ -37,8 +38,8 @@ public class User {
 	private String username;
 
 	// WRITE_ONLY = 只写：请求体里可以传 password，响应时绝不输出。
-	// 注意不能用 @JsonIgnore —— 它会连反序列化一起忽略，导致创建用户时收不到密码
-	// （已由 UserApiSerializationTest 覆盖：换成 @JsonIgnore 时该测试会失败）。
+	// 注意不能用 @JsonIgnore —— 它会连反序列化一起忽略，导致创建用户时收不到密码。
+	// 实体本身没有 JSON 输出场景，对外一律走 UserResponse。
 	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	@Column(nullable = false)
 	private String password;

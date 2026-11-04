@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 /**
- * 管理台操作审计记录：只追加，不修改、不删除。
+ * 操作审计记录（管理台与账号自助）：只追加，不修改、不删除。
  *
  * 字段刻意保持扁平（action + target + detail），因为「动作」的种类会持续增加，
  * 每加一种就改表结构不可维护；detail 用来承载该动作自己的上下文。

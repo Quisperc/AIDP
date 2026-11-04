@@ -82,7 +82,7 @@
             <scope>test</scope>
         </dependency>
         <!-- Schema 迁移：原先 schema.sql（OAuth2 表）与 ddl-auto（users 表）两套机制并存，
-             改表容易漏一处。统一由 Flyway 管理，ddl-auto 退为 validate。 -->
+             改表容易漏一处。统一由 Flyway 管理，ddl-auto 固定为 none。 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -104,9 +104,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!-- Spring Boot 4 的 Redis 会话：必须用官方 starter，只引 spring-session-data-redis
+             不会带上 Boot 4 拆出的自动配置模块，会话会静默退回本地 Servlet session。
+             注意 Boot 4 已移除 spring.session.store-type，改为「classpath 有 starter 即启用」；
+             store 专属属性的前缀也从 spring.session.redis.* 改为 spring.session.data.redis.*。 -->
         <dependency>
-            <groupId>org.springframework.session</groupId>
-            <artifactId>spring-session-data-redis</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-session-data-redis</artifactId>
         </dependency>
     </dependencies>
 

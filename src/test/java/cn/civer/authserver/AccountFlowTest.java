@@ -3,6 +3,7 @@ package cn.civer.authserver;
 import cn.civer.authserver.entity.User;
 import cn.civer.authserver.repository.AuthorizationQueryRepository;
 import cn.civer.authserver.repository.UserRepository;
+import cn.civer.authserver.service.AccountService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,9 @@ class AccountFlowTest {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
+	private AccountService accountService;
 
 	private MockMvc mockMvc;
 
@@ -175,6 +179,38 @@ class AccountFlowTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.scopes_supported", hasItem("profile")))
 				.andExpect(jsonPath("$.scopes_supported", hasItem("email")));
+	}
+
+	@Test
+	@Transactional
+	@DisplayName("改密成功：旧凭据立即失效，新凭据可用")
+	void passwordChangeReplacesCredential() {
+		User user = userRepository.save(new User("pwd-ok-user",
+				passwordEncoder.encode("old-pwd-123"), "ROLE_USER"));
+
+		accountService.changePassword("pwd-ok-user", "old-pwd-123", "new-pwd-456", "new-pwd-456");
+
+		User reloaded = userRepository.findById(user.getId()).orElseThrow();
+		assertThat(passwordEncoder.matches("old-pwd-123", reloaded.getPassword())).isFalse();
+		assertThat(passwordEncoder.matches("new-pwd-456", reloaded.getPassword())).isTrue();
+	}
+
+	@Test
+	@Transactional
+	@DisplayName("改登录名：登录名变化但 sub 不变，旧名不再可登录")
+	void changeUsernameKeepsSubject() {
+		User user = userRepository.save(new User("old-name",
+				passwordEncoder.encode("pwd-123"), "ROLE_USER"));
+		String publicId = user.getPublicId();
+
+		String newName = accountService.changeUsername("old-name", "new-name", "pwd-123");
+
+		assertThat(newName).isEqualTo("new-name");
+		User reloaded = userRepository.findById(user.getId()).orElseThrow();
+		assertThat(reloaded.getUsername()).isEqualTo("new-name");
+		assertThat(reloaded.getPublicId()).isEqualTo(publicId);
+		assertThat(userRepository.findByUsername("old-name")).isEmpty();
+		assertThat(userRepository.findByUsername("new-name")).isPresent();
 	}
 
 	private void insertConsent(String internalId, String principal) {

@@ -36,7 +36,4 @@ public record PageResult<T>(
 		return page + 1;
 	}
 
-	public static <T> PageResult<T> empty(int size) {
-		return of(List.of(), 0, size, 0);
-	}
 }

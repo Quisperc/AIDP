@@ -45,16 +45,15 @@
 								<span class="scope-name" th:switch="${scope}">
 									<span th:case="'openid'">确认你的身份</span>
 									<span th:case="'profile'">读取你的基本资料</span>
-									<span th:case="'email'">读取你的邮箱地址</span>
-									<span th:case="'offline_access'">在你离线时保持登录状态</span>
-									<span th:case="*" th:text="${scope}">scope</span>
+								<span th:case="'email'">读取你的邮箱地址</span>
+								<span th:case="*" th:text="${scope}">scope</span>
 								</span>
 								<span class="scope-code" th:text="${scope}">scope</span>
 							</span>
 						</label>
 					</li>
 				</ul>
-				<p class="scope-hint">取消勾选某项权限，可能导致该应用无法正常登录。授权后可在该应用内或联系管理员撤销。</p>
+				<p class="scope-hint">取消勾选某项权限，可能导致该应用无法正常登录。授权后可在认证中心「已授权应用」页自行撤销。</p>
 
 				<div class="btn-group">
 					<button type="button" class="btn-secondary" onclick="cancelConsent()">拒绝</button>

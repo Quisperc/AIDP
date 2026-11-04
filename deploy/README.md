@@ -39,8 +39,9 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 健康检查脚本刻意写成单行、不带 shell 变量：这一段由 CNB 通过 SSH 在服务器上执行，
 跨行变量会被替换成空串，曾导致空 URL 轮询 120 秒后误判失败。
 
-> 健康状态里包含 Redis 探针：`SESSION_STORE=redis` 但 Redis 连不上时，服务本身也基本不可用，
-> 此时发布判定失败是正确的。
+> Redis 是会话与缓存的实际依赖：连不上时会话无法保存，服务基本不可用，
+> 发布判定失败是正确的。Spring Boot 4 起会话由
+> `spring-boot-starter-session-data-redis` 自动启用，不再有 `SESSION_STORE` 开关。
 
 > **端口改动要动两处**：`.cnb.yml` 的健康校验把 `http://127.0.0.1:18090/actuator/health`
 > 直接写在 curl 命令里（单行、无变量），改端口必须同步改这一行；只改环境变量不起作用。
@@ -52,8 +53,7 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 ```
 APP_BASE_URL=https://idp.civer.cn      # 决定 OIDC issuer，配错会导致子系统验签失败
 APP_BOOTSTRAP_SEED_DEMO_USERS=false    # 生产不要演示账号
-SESSION_STORE=redis                    # 单机可省略
-CACHE_TYPE=redis
+CACHE_TYPE=redis                       # 登录失败计数跨实例共享；会话无需开关，随 starter 自动启用
 REDIS_HOST=1Panel-redis-ghWF
 REDIS_PASSWORD=<从 Redis 容器取>
 ```
@@ -76,9 +76,9 @@ REDIS_PASSWORD=<从 Redis 容器取>
 **A. 重新发布上一个标签（推荐，可追溯）**
 
 ```bash
-git push origin :refs/tags/auth-v2.3.9        # 删掉已存在的标签
-git tag auth-v2.3.9 <上一个标签的 commit>      # 重建（内容不变）
-git push origin refs/tags/auth-v2.3.9         # 重新触发一次构建与发布
+git push origin :refs/tags/auth-vX.Y.Z        # 删掉已存在的标签（换成上一个版本号）
+git tag auth-vX.Y.Z <上一个标签的 commit>      # 重建（内容不变）
+git push origin refs/tags/auth-vX.Y.Z         # 重新触发一次构建与发布
 ```
 
 或在 CNB 流水线历史里对上一个标签的构建点「重跑」。

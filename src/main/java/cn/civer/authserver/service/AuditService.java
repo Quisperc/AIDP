@@ -20,7 +20,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.Instant;
 
 /**
- * 管理台操作审计。
+ * 操作审计：管理台写操作，以及普通用户在 /account 的自助写操作。
  *
  * 设计取舍：
  * - **不让调用方传 actor/ip**：这两项只能从当前请求推导，开放成参数迟早有人传错或传空。

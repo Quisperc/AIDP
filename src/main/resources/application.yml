@@ -55,15 +55,23 @@ spring:
     # 生产必须为 false：打印 SQL 会把参数值一并写进日志。调试时用 SHOW_SQL=true 临时开启。
     show-sql: ${SHOW_SQL:false}
     open-in-view: false # 显式关闭 Open Session in View，避免视图层访问数据库
-  # ---- 多实例开关 ----
-  # 默认单机：session 走本地 Servlet 容器，cache 用 ConcurrentMap。
-  # 部署多个实例时统一设置 SESSION_STORE=redis、CACHE_TYPE=redis 和 REDIS_*，
-  # 即可让登录会话与登录失败计数跨实例共享。
+  # ---- 会话与缓存（Spring Boot 4）----
+  # Boot 4 已移除 spring.session.store-type：classpath 上有
+  # spring-boot-starter-session-data-redis 就自动把 HttpSession 存进 Redis，不再由环境变量控制。
+  # 无 Redis 的环境（集成测试、纯本地调试）须用 spring.autoconfigure.exclude 排除
+  # SessionDataRedisAutoConfiguration，见 application-test.yml。
+  # store 专属属性的前缀是 spring.session.data.redis.*；写旧的 spring.session.redis.*
+  # 会被静默忽略 —— namespace 退回 spring:session，与共享 Redis 上的其它应用串键。
   session:
-    store-type: ${SESSION_STORE:none}
-    redis:
-      namespace: aidp:auth
+    data:
+      redis:
+        namespace: aidp:auth
+        repository-type: default
+        # 共享 Redis 实例：不让本应用 CONFIG SET 改全局 keyspace 通知配置，
+        # 由 Redis 侧统一设 notify-keyspace-events=Egx（当前线上已满足）。
+        configure-action: none
   cache:
+    # simple（单机进程内）/ redis（多实例共享登录失败计数）。生产由 CACHE_TYPE=redis 覆盖。
     type: ${CACHE_TYPE:simple}
     # simple 类型只创建这里列出的缓存，漏写等于该缓存不存在（代码里会退化为「跳过」）：
     # loginAttempts = 登录失败计数

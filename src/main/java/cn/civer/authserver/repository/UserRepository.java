@@ -15,9 +15,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	/** 邮箱唯一性校验（库上有唯一索引，这里提前给出可读的错误提示）。 */
 	Optional<User> findByEmail(String email);
 
-	/** 按不可变主体标识定位账号：改密 / 改名 / 撤销授权都走这里，不受改名影响。 */
-	Optional<User> findByPublicId(String publicId);
-
 	/** 存量账号回填 public_id（V3 迁移只加列，UUID 由应用层生成以兼容 H2 与 PostgreSQL）。 */
 	List<User> findByPublicIdIsNull();
 

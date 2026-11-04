@@ -28,7 +28,8 @@
 					主体标识（sub）：<span class="cell-mono" th:text="${account.publicId}">uuid</span>
 				</p>
 				<p class="field-hint">
-					主体标识永不改变，子系统按它关联账号；改登录名不会影响已有授权关系。
+					主体标识永不改变，子系统按 (iss, sub) 关联账号；改登录名不会造成账号失配，
+					但会吊销现有授权并要求重新同意。
 				</p>
 			</div>
 		</div>
@@ -111,8 +112,9 @@
 			<div class="card-head"><span class="card-title">安全提示</span></div>
 			<div class="card-body">
 				<p class="field-hint" style="margin-top: 0">
-					改密码或改登录名后会吊销全部已签发令牌并要求重新登录，其它子系统的登录状态也会一并失效。
-					修改资料不会触发退出。撤销单个应用的授权请到「已授权应用」页操作。
+					改密码或改登录名后会吊销全部已签发令牌并要求重新登录；各应用内的本地会话
+					仍需在应用内自行退出。修改资料不会触发退出。
+					撤销单个应用的授权请到「已授权应用」页操作。
 				</p>
 			</div>
 		</div>

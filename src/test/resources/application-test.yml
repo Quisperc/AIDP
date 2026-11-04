@@ -5,15 +5,19 @@
 # 测试也就永远验证不到生产用的那些默认值。改名 + @ActiveProfiles("test") 后，
 # 主配置正常加载，这里只覆盖「测试必须不同」的部分（数据源、端口、会话、缓存）。
 #
-# 注意 MODE=PostgreSQL —— 迁移脚本是 PostgreSQL 语法，H2 需要这个模式才能跑同一份 V1。
+# 注意 MODE=PostgreSQL —— 迁移脚本是 PostgreSQL 语法，H2 需要这个模式才能跑同一批脚本。
 spring:
+  autoconfigure:
+    # Boot 4 只要 classpath 有 session starter 就会启用 Redis 会话；集成测试没有 Redis 服务，
+    # 必须显式排除，否则启动时会尝试连接 Redis。
+    exclude: org.springframework.boot.session.data.redis.autoconfigure.SessionDataRedisAutoConfiguration
   datasource:
     url: jdbc:h2:mem:aidp-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
   # 测试也走 Flyway：迁移脚本同时兼容 PostgreSQL 与 H2（MODE=PostgreSQL），
-  # 这样每个集成测试都会真实验证一遍 V1 脚本，而不是只在生产库上第一次运行才发现问题。
+  # 这样每个集成测试都会真实验证一遍 V1/V2/V3，而不是只在上生产库时才发现问题。
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -24,8 +28,8 @@ spring:
   # RedisCacheManager，而测试环境没有 Redis 服务，缓存读写会落空。
   cache:
     type: simple
-  session:
-    store-type: none
+  # 会话由上面的 spring.autoconfigure.exclude 关闭。Boot 4 已移除
+  # spring.session.store-type，不要再写这个键（写了也会被静默忽略）。
   jpa:
     hibernate:
       # 表结构已由 Flyway 建立，Hibernate 不再介入

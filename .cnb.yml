@@ -4,7 +4,7 @@
 #       → 构建 jar → rsync 到服务器 → 重启容器 → 健康校验
 #
 # 管理台并入认证中心后只剩一个部署单元，因此只有一条 tag 流水线：
-#   auth-v2.4.0 → 构建根模块，部署到 idp 容器
+#   auth-vX.Y.Z → 构建根模块，部署到 idp 容器
 # 标签必须是三段式版本号，否则构建阶段第一行就失败。
 #
 # 服务器侧目录约定见 deploy/README.md —— 那部分不在仓库里，属于必须人工核对的前提。
@@ -30,7 +30,7 @@
         - name: 2. 测试 + 构建 + 发布制品
           image: $DOCKER_CACHE_IMAGE
           script:
-            # 仅提取版本号部分：auth-v2.4.0 -> 2.4.0
+            # 仅提取版本号部分：auth-vX.Y.Z -> X.Y.Z
             - AUTH_VERSION=${CNB_BRANCH#auth-v}
             - echo "$AUTH_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "标签必须形如 auth-v1.2.3，当前为 $CNB_BRANCH"; exit 1; }
             - printf '<settings><servers><server><id>cnb-maven</id><username>%s</username><password>%s</password></server></servers></settings>' "$MAVEN_USER" "$MAVEN_TOKEN" > ./temp_settings.xml
