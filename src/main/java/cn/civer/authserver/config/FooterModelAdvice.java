@@ -1,10 +1,12 @@
 package cn.civer.authserver.config;
 
-import cn.civer.authserver.security.AccountUserDetails;
+import cn.civer.authserver.entity.User;
+import cn.civer.authserver.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
@@ -15,18 +17,20 @@ import org.springframework.web.bind.annotation.ModelAttribute;
  * 相当于把「一个页脚」拆成 6 个全局变量：模板里写错名字只会渲染成空白，没有任何提示。
  * 现在模板用 {@code footer.icp} 取值，结构由 {@link FooterView} 固定。
  *
- * 另提供 displayName：昵称优先、回退登录名。模板不要直接渲染
- * #authentication.name —— 那是内部 principal_name，不是给人看的展示名。
- * 匿名或未启用自定义 UserDetails 的场景（如 @WithMockUser 的集成测试）安全回退。
+ * 另提供 displayName：按登录名查库，昵称优先、回退登录名。安全主体保持框架内置类型
+ * （自定义 UserDetails 会让 OAuth2Authorization 反序列化失败），展示名在这里单独查。
+ * 匿名或 @WithMockUser 这类库里没有的主体，安全回退到 authentication.getName()。
  */
 @ControllerAdvice
 @EnableConfigurationProperties(FooterProperties.class)
 public class FooterModelAdvice {
 
 	private final FooterProperties properties;
+	private final UserRepository userRepository;
 
-	public FooterModelAdvice(FooterProperties properties) {
+	public FooterModelAdvice(FooterProperties properties, UserRepository userRepository) {
 		this.properties = properties;
+		this.userRepository = userRepository;
 	}
 
 	@ModelAttribute("footer")
@@ -44,13 +48,16 @@ public class FooterModelAdvice {
 	@ModelAttribute("displayName")
 	public String displayName() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null) {
+		if (authentication == null || !StringUtils.hasText(authentication.getName())) {
 			return "";
 		}
-		if (authentication.getPrincipal() instanceof AccountUserDetails details) {
-			return details.getDisplayName();
-		}
-		return authentication.getName();
+		return userRepository.findByUsername(authentication.getName())
+				.map(FooterModelAdvice::displayNameOf)
+				.orElse(authentication.getName());
+	}
+
+	private static String displayNameOf(User user) {
+		return StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername();
 	}
 
 	/** 解析图标地址：绝对 URL 原样返回，相对路径前加 contextPath */

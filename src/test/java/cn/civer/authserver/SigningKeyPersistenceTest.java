@@ -1,6 +1,7 @@
 package cn.civer.authserver;
 
 import cn.civer.authserver.config.TokenConfig;
+import cn.civer.authserver.repository.UserRepository;
 import cn.civer.authserver.security.SigningKeyStore;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKMatcher;
@@ -39,13 +40,17 @@ class SigningKeyPersistenceTest {
     @Autowired
     private JWKSource<SecurityContext> jwkSource;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Test
     @DisplayName("重启后复用同一把签名密钥（kid 不变）")
     void keyIsReusedAfterRestart() throws Exception {
         String kidBefore = firstKeyId(jwkSource);
 
         // 模拟重启：新的装配实例，同一份数据库
-        TokenConfig restarted = new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary"));
+        TokenConfig restarted = new TokenConfig(
+                new SigningKeyStore(jdbcTemplate, "primary"), userRepository);
         String kidAfter = firstKeyId(restarted.jwkSource());
 
         assertEquals(kidBefore, kidAfter,
@@ -67,8 +72,8 @@ class SigningKeyPersistenceTest {
     @Test
     @DisplayName("重复启动不会产生多条密钥记录")
     void repeatedStartupDoesNotDuplicateKeys() {
-        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary")).jwkSource();
-        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary")).jwkSource();
+        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary"), userRepository).jwkSource();
+        new TokenConfig(new SigningKeyStore(jdbcTemplate, "primary"), userRepository).jwkSource();
 
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM oauth2_signing_key WHERE id = ?", Integer.class, "primary");

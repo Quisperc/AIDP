@@ -1,6 +1,7 @@
 package cn.civer.authserver.config;
 
-import cn.civer.authserver.security.AccountUserDetails;
+import cn.civer.authserver.entity.User;
+import cn.civer.authserver.repository.UserRepository;
 import cn.civer.authserver.security.SigningKeyStore;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -23,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -41,6 +43,9 @@ import java.util.stream.Collectors;
  *    过滤生成 UserInfo，所以这里写对，两处就自然一致，无需自定义 mapper。
  *    若无条件写 email，只拿到 openid/profile 的客户端也能从 id_token 读到邮箱。
  *
+ * 资料按登录名从库中读取，不塞进安全主体：自定义 UserDetails 会让
+ * OAuth2Authorization 的 JSON 反序列化失败（见 CustomUserDetailsService）。
+ *
  * @DependsOn("flyway")：jwkSource 会查 oauth2_signing_key，必须等 Flyway 建好表。
  * Spring Boot 4 已无 FlywayAutoConfiguration，迁移由 FlywayConfig 显式接管，
  * 依赖顺序需要自己声明。
@@ -50,12 +55,14 @@ import java.util.stream.Collectors;
 public class TokenConfig {
 
 	private final SigningKeyStore signingKeyStore;
+	private final UserRepository userRepository;
 
 	@Value("${spring.security.oauth2.authorizationserver.issuer:${app.base-url:}}")
 	private String issuer;
 
-	public TokenConfig(SigningKeyStore signingKeyStore) {
+	public TokenConfig(SigningKeyStore signingKeyStore, UserRepository userRepository) {
 		this.signingKeyStore = signingKeyStore;
+		this.userRepository = userRepository;
 	}
 
 	@Bean
@@ -90,31 +97,38 @@ public class TokenConfig {
 				context.getClaims().claim("roles", authorities);
 			}
 
-			if (!(principal instanceof AccountUserDetails account)
-					|| !OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue())) {
+			if (!OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue())) {
 				return;
 			}
 
+			Optional<User> account = userRepository.findByUsername(context.getPrincipal().getName());
+			if (account.isEmpty()) {
+				return;
+			}
+			User user = account.get();
+
 			// 覆写框架默认填入的 username，改用永不变的主体标识
-			if (StringUtils.hasText(account.getPublicId())) {
-				context.getClaims().subject(account.getPublicId());
+			if (StringUtils.hasText(user.getPublicId())) {
+				context.getClaims().subject(user.getPublicId());
 			}
 
 			Set<String> scopes = context.getAuthorizedScopes();
 			if (scopes == null) {
 				return;
 			}
-			if (scopes.contains(OidcScopes.EMAIL) && StringUtils.hasText(account.getEmail())) {
+			if (scopes.contains(OidcScopes.EMAIL) && StringUtils.hasText(user.getEmail())) {
 				context.getClaims()
-						.claim(StandardClaimNames.EMAIL, account.getEmail())
+						.claim(StandardClaimNames.EMAIL, user.getEmail())
 						// 自助填写的邮箱未经验证，绝不能声明为已验证：
 						// 下游若拿 email_verified 做账号合并会造成账号接管。
-						.claim(StandardClaimNames.EMAIL_VERIFIED, account.isEmailVerified());
+						.claim(StandardClaimNames.EMAIL_VERIFIED, user.isEmailVerified());
 			}
 			if (scopes.contains(OidcScopes.PROFILE)) {
+				String nickname = StringUtils.hasText(user.getNickname())
+						? user.getNickname() : user.getUsername();
 				context.getClaims()
-						.claim(StandardClaimNames.NICKNAME, account.getDisplayName())
-						.claim(StandardClaimNames.PREFERRED_USERNAME, account.getUsername());
+						.claim(StandardClaimNames.NICKNAME, nickname)
+						.claim(StandardClaimNames.PREFERRED_USERNAME, user.getUsername());
 			}
 		};
 	}
