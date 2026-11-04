@@ -28,6 +28,8 @@
 						<tr>
 							<th class="cell-narrow">ID</th>
 							<th>用户名</th>
+							<th>昵称</th>
+							<th>邮箱</th>
 							<th>角色</th>
 							<th>状态</th>
 							<th></th>
@@ -37,6 +39,8 @@
 						<tr th:each="u : ${users}">
 							<td class="cell-mono" th:text="${u.id}">1</td>
 							<td class="cell-name" th:text="${u.username}">admin</td>
+							<td th:text="${u.nickname} ?: '—'">—</td>
+							<td th:text="${u.email} ?: '—'">—</td>
 							<td>
 								<span class="badge"
 									th:classappend="${u.role == 'ROLE_ADMIN'} ? 'badge-admin' : 'badge-off'"

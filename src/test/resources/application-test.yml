@@ -16,7 +16,6 @@ spring:
   # 这样每个集成测试都会真实验证一遍 V1 脚本，而不是只在生产库上第一次运行才发现问题。
   flyway:
     enabled: true
-    baseline-on-migrate: true
     locations: classpath:db/migration
   sql:
     init:

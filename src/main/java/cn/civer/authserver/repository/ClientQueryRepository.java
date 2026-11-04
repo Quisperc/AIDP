@@ -12,7 +12,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -59,14 +58,14 @@ public class ClientQueryRepository {
 	}
 
 	private ClientSummaryDto mapRow(ResultSet rs) throws SQLException {
+		String redirectUris = rs.getString("redirect_uris");
 		return new ClientSummaryDto(
 				rs.getString("id"),
 				rs.getString("client_id"),
 				rs.getString("client_name"),
-				// 库里 redirect_uris 是逗号分隔（JdbcRegisteredClientRepository 的存法），
-				// 详情响应是换行分隔。同一个字段两种格式会让前端按 \n 拆分时漏掉多 URI
-				// 客户端的「+n」提示，这里统一成换行。
-				toLineSeparated(rs.getString("redirect_uris")),
+				// 库内与表单统一用逗号分隔（JdbcRegisteredClientRepository 的存法），
+				// 不再做换行转换，避免同一个字段出现两种格式。
+				redirectUris == null ? "" : redirectUris,
 				rs.getString("post_logout_redirect_uris"),
 				requireProofKey(rs.getString("client_settings")));
 	}
@@ -107,14 +106,4 @@ public class ClientQueryRepository {
 		}
 	}
 
-	/** 逗号分隔 → 换行分隔，空值统一成空串（模板按 isEmpty 判断） */
-	private static String toLineSeparated(String raw) {
-		if (!StringUtils.hasText(raw)) {
-			return "";
-		}
-		return String.join("\n", Arrays.stream(raw.split(","))
-				.map(String::trim)
-				.filter(s -> !s.isEmpty())
-				.toList());
-	}
 }

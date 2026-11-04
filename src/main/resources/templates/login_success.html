@@ -32,7 +32,7 @@
 			<div class="info-list">
 				<div class="info-item">
 					<span class="info-label">账号</span>
-					<span class="info-value" th:text="${username}">username</span>
+					<span class="info-value" th:text="${displayName}">username</span>
 				</div>
 				<div class="info-item">
 					<span class="info-label">角色</span>
@@ -47,8 +47,14 @@
 				idp.civer.cn
 			</div>
 
+			<a class="btn-primary" th:href="@{/account}"
+				style="display:block;text-align:center;text-decoration:none;line-height:44px">
+				账号设置
+			</a>
+
 			<a sec:authorize="hasAuthority('ROLE_ADMIN')" class="btn-primary"
-				th:href="@{/admin/users}" style="display:block;text-align:center;text-decoration:none;line-height:44px">
+				th:href="@{/admin/users}"
+				style="display:block;text-align:center;text-decoration:none;line-height:44px;margin-top:12px">
 				进入管理台
 			</a>
 

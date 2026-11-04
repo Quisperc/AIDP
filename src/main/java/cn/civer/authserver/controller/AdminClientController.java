@@ -95,7 +95,7 @@ public class AdminClientController {
 			@RequestParam(required = false) String clientSecret,
 			@RequestParam(required = false) String redirectUri,
 			@RequestParam(required = false) String postLogoutRedirectUri,
-			@RequestParam(defaultValue = "false") boolean requirePkce,
+			@RequestParam(required = false) Boolean requirePkce,
 			RedirectAttributes ra) {
 		try {
 			// clientSecret 留空 = 不改密钥，Service 会沿用库里的哈希
@@ -103,7 +103,8 @@ public class AdminClientController {
 			clientService.update(clientId, new ClientDto(clientId, clientSecret, redirectUri,
 					postLogoutRedirectUri, clientName, requirePkce));
 			auditService.record(AuditService.CLIENT_UPDATE, clientId,
-					"redirectUri=" + redirectUri + ", requirePkce=" + requirePkce
+					"redirectUri=" + redirectUri
+							+ ", requirePkce=" + (requirePkce == null ? "unchanged" : requirePkce)
 							+ ", secretRotated=" + secretRotated);
 			ra.addFlashAttribute("ok", "已保存客户端「" + clientId + "」");
 			return "redirect:/admin/clients";

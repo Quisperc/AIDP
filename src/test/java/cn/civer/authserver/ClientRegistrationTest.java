@@ -18,7 +18,9 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 客户端注册/编辑的字段归一化回归。
@@ -73,5 +75,27 @@ class ClientRegistrationTest {
 		assertEquals(Set.of("https://app.example.com/logout-a", "https://app.example.com/logout-b"),
 				updated.getPostLogoutRedirectUris(), "未提交新地址时应保留原有的多条记录");
 		assertEquals(Set.of("https://app.example.com/cb"), updated.getRedirectUris());
+	}
+
+	@Test
+	@Transactional
+	@DisplayName("编辑时未提交 PKCE 开关沿用原值，只有显式 false 才关闭")
+	void updateKeepsPkceUnlessExplicitlyChanged() {
+		clientService.register(new ClientDto("pkce-guard", "secret",
+				"https://app.example.com/cb", null, null, true));
+		assertTrue(registeredClientRepository.findByClientId("pkce-guard")
+				.getClientSettings().isRequireProofKey(), "新建客户端默认强制 PKCE");
+
+		// null：非表单调用方没给这个字段，沿用原值，不能被静默改成 false
+		clientService.update("pkce-guard", new ClientDto("pkce-guard", null,
+				"https://app.example.com/cb", null, null, null));
+		assertTrue(registeredClientRepository.findByClientId("pkce-guard")
+				.getClientSettings().isRequireProofKey(), "沿用原值，不应静默关闭");
+
+		// 显式 false：表单里明确选择关闭才生效
+		clientService.update("pkce-guard", new ClientDto("pkce-guard", null,
+				"https://app.example.com/cb", null, null, false));
+		assertFalse(registeredClientRepository.findByClientId("pkce-guard")
+				.getClientSettings().isRequireProofKey(), "显式 false 应能关闭");
 	}
 }

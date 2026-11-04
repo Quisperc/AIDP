@@ -3,21 +3,14 @@ package cn.civer.authserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import cn.civer.authserver.service.SsoLogoutService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-
-import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -30,12 +23,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 开放重定向回归测试。
  *
- * 登出后回跳的 redirect_uri 直接取自请求参数（POST /logout）。若不做校验，攻击者可构造
- * /logout?redirect_uri=https://evil.com —— 跳转来源仍是本站域名，可信度极高，
- * 是典型的钓鱼手法。校验规则：只允许已注册客户端 redirect_uris 所在 host 的绝对 URL。
+ * 表单登出不再接受请求里的 redirect_uri（Spring Security 没有这个标准参数），
+ * 一律固定回到 /login?logout；需要回跳业务系统时走标准的 /connect/logout +
+ * 已注册的 post_logout_redirect_uri，由框架做精确匹配。这里从外部证明
+ * 「无论传什么 redirect_uri 都不会被当成跳转目标」——不再需要自研 host 白名单。
  *
- * （早期还有一个自研的 /oauth2/revoke-consent 端点使用同样的校验；该端点已删除，
- *   现在只保留标准端点，因此这里改为覆盖 /logout。）
+ * 错误页的 continue 参数同样不能拼进 href：认证中心域名握着 SSO 会话，
+ * 一个 javascript: 链接就在那里执行脚本。
  */
 @ActiveProfiles("test")
 @SpringBootTest
@@ -46,39 +40,18 @@ class OpenRedirectSecurityTest {
 
     private MockMvc mockMvc;
 
-    @Autowired
-    private RegisteredClientRepository registeredClientRepository;
-
-    @Autowired
-    private SsoLogoutService ssoLogoutService;
-
     @BeforeEach
     void setUp() {
         this.mockMvc = MockMvcBuilders
                 .webAppContextSetup(context)
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
-        // 用例自己准备一个客户端：登出白名单来自已注册客户端的 redirect_uris，
-        // 依赖启动预置数据会让这个测试和初始化逻辑耦合在一起。
-        if (registeredClientRepository.findByClientId("test-client") == null) {
-            registeredClientRepository.save(RegisteredClient.withId(UUID.randomUUID().toString())
-                    .clientId("test-client")
-                    .clientSecret("{noop}test-secret")
-                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .redirectUri("http://localhost:8081/login/oauth2/code/oidc-client")
-                    .postLogoutRedirectUri("http://localhost:8081/login")
-                    .scope("openid")
-                    .build());
-        }
-        // 白名单有缓存，建完客户端必须失效，否则本类里先跑的用例读到的是空集合
-        ssoLogoutService.invalidateHostCache();
     }
 
     @Test
-    @DisplayName("登出回跳：外站地址被拦截，回到默认登录页")
+    @DisplayName("表单登出忽略外站 redirect_uri，固定回到登录页")
     @WithMockUser(username = "user", authorities = {"ROLE_USER"})
-    void logoutRejectsExternalRedirect() throws Exception {
+    void logoutIgnoresExternalRedirect() throws Exception {
         for (String unsafe : new String[]{"https://evil.com/steal", "//evil.com/steal"}) {
             mockMvc.perform(post("/logout").with(csrf()).param("redirect_uri", unsafe))
                     .andExpect(redirectedUrl("/login?logout"));
@@ -86,19 +59,14 @@ class OpenRedirectSecurityTest {
     }
 
     @Test
-    @DisplayName("登出回跳：已注册客户端所在 host 的地址放行")
+    @DisplayName("表单登出也不接受站内或已注册 host 的 redirect_uri")
     @WithMockUser(username = "user", authorities = {"ROLE_USER"})
-    void logoutAllowsRegisteredClientHost() throws Exception {
-        // test-client 的 redirect-uris 为 http://localhost:8081/...，故 localhost 在白名单内
+    void logoutIgnoresEvenInternalRedirect() throws Exception {
         mockMvc.perform(post("/logout").with(csrf())
                         .param("redirect_uri", "http://localhost:8081/home"))
-                .andExpect(redirectedUrl("http://localhost:8081/home"));
+                .andExpect(redirectedUrl("/login?logout"));
     }
 
-    /**
-     * 错误页的「返回」按钮同样不能用请求参数直接拼 href：
-     * 认证中心域名握着 SSO 会话，一个 javascript: 链接就在那里执行脚本。
-     */
     @Test
     @DisplayName("错误页不渲染脚本协议或外站回跳地址")
     void errorPageRejectsUnsafeContinueUrl() throws Exception {

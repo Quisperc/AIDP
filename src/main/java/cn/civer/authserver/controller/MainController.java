@@ -15,7 +15,8 @@ public class MainController {
 	public String index(org.springframework.security.core.Authentication authentication,
 			Model model) {
 		if (authentication != null && authentication.isAuthenticated()) {
-			model.addAttribute("username", authentication.getName());
+			// 展示名由 FooterModelAdvice 的 displayName 统一提供（昵称优先），
+			// 这里不再往模型里塞 username，避免和 internal principal_name 混淆。
 			model.addAttribute("roles", authentication.getAuthorities());
 			return "login_success";
 		}
@@ -55,7 +56,7 @@ public class MainController {
 			model.addAttribute("statusText", "Bad Request");
 			model.addAttribute("message", StringUtils.hasText(message)
 					? message
-					: "该客户端未在认证中心注册或已失效，请联系系统管理员在认证中心重新配置后再试。");
+					: "请求无效或页面不存在，请返回首页重试。");
 			model.addAttribute("backUrl", safeBackUrl(continueUrl));
 		}
 		return "error";

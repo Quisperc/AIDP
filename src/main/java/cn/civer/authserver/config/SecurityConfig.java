@@ -8,11 +8,11 @@ import cn.civer.authserver.service.SsoLogoutService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.server.authorization.oidc.web.authentication.OidcLogoutAuthenticationSuccessHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -57,6 +57,9 @@ public class SecurityConfig {
 						// 健康检查必须匿名可达，否则容器编排与发布流水线拿到 401/302
 						.requestMatchers("/", "/login", "/error", "/favicon.ico", "/css/**", "/js/**", "/images/**",
 								"/actuator/health", "/actuator/health/**").permitAll()
+						// 账号自助：任何已登录用户都可维护自己的资料与授权，
+						// 但只作用于当前会话主体，绝不接受用户 id 参数。
+						.requestMatchers("/account", "/account/**").authenticated()
 						// 管理台：会话 + 角色。URL 粒度足够，方法上加 @PreAuthorize 反而重复
 						.requestMatchers("/admin", "/admin/**").hasAuthority("ROLE_ADMIN")
 						.anyRequest().authenticated())
@@ -73,10 +76,14 @@ public class SecurityConfig {
 						UsernamePasswordAuthenticationFilter.class)
 				.oauth2AuthorizationServer(authorizationServer -> authorizationServer
 						.oidc(oidc -> oidc
-								.providerConfigurationEndpoint(Customizer.withDefaults())
-								// 标准端点 /connect/logout（discovery 里的 end_session_endpoint）
-								// 也要触发全局退出：外部系统按 OIDC 规范调它，若只清本机会话，
-								// 用户从 A 系统退出后，其它子系统仍在线。
+								// 显式广告 profile / email：客户端可从 discovery 得知能力，
+								// 不必靠文档约定。scope() 来自 AbstractBuilder。
+								.providerConfigurationEndpoint(endpoint -> endpoint
+										.providerConfigurationCustomizer(builder -> builder
+												.scope(OidcScopes.PROFILE)
+												.scope(OidcScopes.EMAIL)))
+								// 标准端点 /connect/logout（discovery 的 end_session_endpoint）
+								// 也要吊销该用户的授权与令牌，避免子系统仍持有有效令牌。
 								.logoutEndpoint(endpoint ->
 										endpoint.logoutResponseHandler(oidcLogoutSuccessHandler())))
 						.authorizationEndpoint(authorizationEndpoint ->
@@ -86,7 +93,7 @@ public class SecurityConfig {
 	}
 
 	/**
-	 * OIDC RP-Initiated Logout 的成功处理器：先做全局退出（删同意/授权 + 广播），
+	 * OIDC RP-Initiated Logout 的成功处理器：先做全局退出（删同意/授权），
 	 * 再交给 Spring Authorization Server 的默认实现完成会话失效与回跳校验。
 	 *
 	 * 复用默认实现而不是自己写重定向：post_logout_redirect_uri 的合法性校验、
@@ -100,8 +107,7 @@ public class SecurityConfig {
 					|| authentication instanceof AnonymousAuthenticationToken) {
 				return;
 			}
-			ssoLogoutService.performGlobalLogout(authentication.getName(),
-					ssoLogoutService.getResolvedIssuer(request));
+			ssoLogoutService.performGlobalLogout(authentication.getName());
 		});
 		return handler;
 	}

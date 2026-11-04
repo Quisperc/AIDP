@@ -47,12 +47,6 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
-/* 旧版背景装饰已从模板移除，这里保留兜底，避免旧快照打开时炸开 */
-.bg-animation,
-.bg-circle {
-  display: none !important;
-}
-
 .page-main {
   flex: 1;
   display: grid;
@@ -585,12 +579,6 @@ form > .btn-submit {
   width: 22px;
   height: 22px;
   fill: currentColor;
-}
-
-/* 旧的居中头部结构：新模板不再使用，保留兜底 */
-.login-header,
-.consent-header {
-  margin-bottom: var(--sp-6);
 }
 
 .auth-foot {

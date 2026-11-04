@@ -59,9 +59,10 @@ public class ConsentController {
 			return "redirect:/error?message=" + URLEncoder.encode(CLIENT_NOT_FOUND_MESSAGE, StandardCharsets.UTF_8);
 		}
 
-		// 当前实现是「凡请求的 scope 都展示、都默认勾选」：认证中心只签发 openid/profile，
-		// 没有需要回填历史勾选状态的场景。将来接入带敏感 scope 的应用时，
-		// 这里要结合 OAuth2AuthorizationConsentService 过滤掉已授予的 scope。
+		// 当前实现是「凡请求的 scope 都展示、都默认勾选」。请求的 scope 已在授权端点
+		// 由框架按客户端注册范围校验过（openid / profile / email），这里只负责渲染。
+		// 将来需要「记住用户上次勾选」时，再结合 OAuth2AuthorizationConsentService
+		// 过滤掉已授予的 scope。
 		Set<String> scopesToApprove = Arrays
 				.stream(StringUtils.delimitedListToStringArray(scope, " "))
 				.filter(StringUtils::hasText)

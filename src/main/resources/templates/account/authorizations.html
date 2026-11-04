@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('已授权应用')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('profile')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">已授权应用</h1>
+				<p class="page-desc">撤销后该应用无法再用已有令牌或刷新令牌访问你的账号。</p>
+			</div>
+			<a class="btn" th:href="@{/account}">返回账号</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div th:if="${#lists.isEmpty(authorizations)}" class="empty">
+				还没有授权记录。登录某个已接入的应用并同意授权后，它会出现在这里。
+			</div>
+			<div class="table-wrap" th:unless="${#lists.isEmpty(authorizations)}">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>应用</th>
+							<th>客户端 ID</th>
+							<th>已授予权限</th>
+							<th>有效令牌记录</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="a : ${authorizations}">
+							<td class="cell-name" th:text="${a.clientName}">应用</td>
+							<td class="cell-mono" th:text="${a.clientId}">client-id</td>
+							<td th:text="${a.scopes} ?: '—'">openid, profile</td>
+							<td th:text="${a.tokenCount}">0</td>
+							<td class="cell-narrow">
+								<form th:action="@{/account/authorizations/{id}/revoke(id=${a.clientId})}" method="post"
+									onsubmit="return confirm('确定撤销「' + this.dataset.name + '」的授权？');"
+									th:attr="data-name=${a.clientName}">
+									<button type="submit" class="btn btn-danger">撤销</button>
+								</form>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">撤销的作用范围</span></div>
+			<div class="card-body">
+				<p class="field-hint" style="margin-top: 0">
+					撤销只作用于「你 + 这个应用」，不会影响其他用户或其他应用。认证中心会同时删除
+					授权同意与已签发令牌（含 refresh token），下次登录该应用时需要重新同意。
+				</p>
+				<p class="field-hint">
+					认证中心不提供任何私有登出推送：全局退出只吊销服务端令牌与同意记录。
+					若该应用内仍显示已登录，请在该应用内自行退出（标准的 RP-Initiated Logout）。
+				</p>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证</footer>
+</body>
+
+</html>

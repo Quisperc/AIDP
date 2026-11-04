@@ -28,9 +28,11 @@ spring:
   application:
     name: auth-server
   datasource:
-    url: jdbc:postgresql://localhost:5432/authdb # 数据库连接地址
-    username: username # 数据库用户名
-    password: password # 数据库密码
+    # 不在主配置里放明文默认口令；本地由 application-secret.yml（已 gitignore）提供，
+    # 部署由环境变量覆盖。
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${DB_USERNAME:username}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
   sql:
     # schema 已由 Flyway 统一管理，不再走 schema.sql（原文件已删除）
@@ -38,11 +40,10 @@ spring:
       mode: never
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
-    # 对已有库自动打基线并跳过早期迁移，避免与历史表结构冲突。
-    # 这几项由 FlywayConfig 读取后显式传给 Flyway —— Spring Boot 4 不再提供
+    # Dev 阶段所有库都由 Flyway 从零管理，不再为「有表但无迁移历史」的旧库打基线。
+    # 下面几项由 FlywayConfig 读取后显式传给 Flyway —— Spring Boot 4 不再提供
     # FlywayAutoConfiguration，写在 yml 里不会被自动应用，必须由代码读走。
-    baseline-on-migrate: true
-    baseline-version: 0
+    baseline-on-migrate: false
     locations: classpath:db/migration
     # 迁移失败应中止启动，而不是带着半截 schema 继续跑
     fail-on-missing-locations: true
@@ -57,7 +58,7 @@ spring:
   # ---- 多实例开关 ----
   # 默认单机：session 走本地 Servlet 容器，cache 用 ConcurrentMap。
   # 部署多个实例时统一设置 SESSION_STORE=redis、CACHE_TYPE=redis 和 REDIS_*，
-  # 即可让登录会话与 host 白名单缓存跨实例共享。
+  # 即可让登录会话与登录失败计数跨实例共享。
   session:
     store-type: ${SESSION_STORE:none}
     redis:
@@ -65,8 +66,8 @@ spring:
   cache:
     type: ${CACHE_TYPE:simple}
     # simple 类型只创建这里列出的缓存，漏写等于该缓存不存在（代码里会退化为「跳过」）：
-    # ssoAllowedHosts = 登出回跳 host 白名单；loginAttempts = 登录失败计数
-    cache-names: ssoAllowedHosts,loginAttempts
+    # loginAttempts = 登录失败计数
+    cache-names: loginAttempts
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -102,7 +103,7 @@ management:
 
 app:
   # 认证中心对外 issuer（生产须为 https://idp.civer.cn），必须与各子系统 issuer-uri 一致，
-  # 否则 Back-Channel Logout 的 logout_token 验签失败（现象：全局登出时别的系统不退）
+  # 否则 id_token 的 iss 校验失败
   base-url: ${APP_BASE_URL:http://127.0.0.1:8080}
   # 底部备案信息（留空则不显示）。字段定义见 config/FooterProperties
   footer:
@@ -121,11 +122,6 @@ app:
     # 签名密钥在 oauth2_signing_key 表中的主键。同一套库要跑两套互不干扰的环境时，
     # 才需要换 record-id；正常情况下保持 primary，改它等于换密钥（已签发令牌全部失效）
     record-id: ${SIGNING_KEY_RECORD_ID:primary}
-
-  sso:
-    # 各子系统接收 logout_token 的固定路径。改这里必须同步改所有子系统，
-    # 且该端点需与注册的回调同域同端口（推送地址取 redirect_uri 的 origin）
-    client-logout-path: ${SSO_CLIENT_LOGOUT_PATH:/api/sso-logout}
 
   login-guard:
     # 同一用户名连续失败达到阈值后临时锁定；管理员账号豁免（被锁后没有自助解锁入口）

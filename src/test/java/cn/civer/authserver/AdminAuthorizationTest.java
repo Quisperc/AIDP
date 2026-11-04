@@ -67,9 +67,11 @@ class AdminAuthorizationTest {
 	}
 
 	@Test
-	@DisplayName("普通用户不得进入账号页")
+	@DisplayName("普通用户不得进入 /admin/** 下的任何路径（含已废弃的旧账号路径）")
 	@WithMockUser(username = "user", authorities = {"ROLE_USER"})
-	void normalUserIsDeniedOnProfile() throws Exception {
+	void normalUserIsDeniedOnAdminPath() throws Exception {
+		// /admin/profile 的控制器已删除，账号自助统一在 /account；
+		// 这条断言守的是 URL 授权规则本身，而不是某个控制器是否存在。
 		mockMvc.perform(get("/admin/profile")).andExpect(status().isForbidden());
 	}
 

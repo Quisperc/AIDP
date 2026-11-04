@@ -44,8 +44,22 @@
 							th:required="${user == null}" autocomplete="new-password" placeholder="至少 8 位，避免使用弱口令" />
 					</div>
 
-					<div class="field">
-						<label class="field-label" for="role">角色</label>
+				<div class="field">
+					<label class="field-label" for="email">邮箱</label>
+					<input class="input" id="email" name="email" type="email"
+						th:value="${user != null ? user.email : email}" placeholder="name@example.com" />
+					<p class="field-hint">仅在应用请求 email 权限时提供。管理员录入视为已验证。</p>
+				</div>
+
+				<div class="field">
+					<label class="field-label" for="nickname">昵称</label>
+					<input class="input" id="nickname" name="nickname" type="text"
+						th:value="${user != null ? user.nickname : nickname}" />
+					<p class="field-hint">作为 profile 权限下的 nickname 提供给已接入应用。</p>
+				</div>
+
+				<div class="field">
+					<label class="field-label" for="role">角色</label>
 						<select class="select" id="role" name="role">
 							<option value="ROLE_USER"
 								th:selected="${(user != null and user.role == 'ROLE_USER') or (user == null and role != 'ROLE_ADMIN')}">普通用户</option>

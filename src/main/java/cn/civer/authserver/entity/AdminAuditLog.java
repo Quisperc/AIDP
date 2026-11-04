@@ -31,7 +31,7 @@ public class AdminAuditLog {
 	@Column(nullable = false)
 	private String actor;
 
-	/** 动作码，如 USER_CREATE / CLIENT_DELETE / PROFILE_UPDATE */
+	/** 动作码，如 USER_CREATE / CLIENT_DELETE / ACCOUNT_UPDATE / AUTHZ_REVOKE */
 	@Column(nullable = false, length = 64)
 	private String action;
 

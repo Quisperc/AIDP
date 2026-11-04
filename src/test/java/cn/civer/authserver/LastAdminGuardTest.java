@@ -52,10 +52,10 @@ class LastAdminGuardTest {
 		User admin = userRepository.save(new User("solo-admin", passwordEncoder.encode("pwd-123"), "ROLE_ADMIN"));
 
 		assertThrows(BusinessException.class,
-				() -> userAdminService.update(admin.getId(), "ROLE_ADMIN", false, null),
+				() -> userAdminService.update(admin.getId(), "ROLE_ADMIN", false, null, null, null),
 				"停用唯一管理员应被拒绝");
 		assertThrows(BusinessException.class,
-				() -> userAdminService.update(admin.getId(), "ROLE_USER", true, null),
+				() -> userAdminService.update(admin.getId(), "ROLE_USER", true, null, null, null),
 				"降级唯一管理员应被拒绝");
 		assertThrows(BusinessException.class,
 				() -> userAdminService.disable(admin.getId()),
@@ -69,7 +69,7 @@ class LastAdminGuardTest {
 		User first = userRepository.save(new User("admin-a", passwordEncoder.encode("pwd-123"), "ROLE_ADMIN"));
 		userRepository.save(new User("admin-b", passwordEncoder.encode("pwd-123"), "ROLE_ADMIN"));
 
-		userAdminService.update(first.getId(), "ROLE_USER", true, null);
+		userAdminService.update(first.getId(), "ROLE_USER", true, null, null, null);
 
 		assert userRepository.findById(first.getId()).orElseThrow().getRole().equals("ROLE_USER");
 	}

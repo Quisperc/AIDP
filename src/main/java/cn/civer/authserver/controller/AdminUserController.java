@@ -58,15 +58,19 @@ public class AdminUserController {
 	public String create(@RequestParam String username,
 			@RequestParam String password,
 			@RequestParam(defaultValue = "ROLE_USER") String role,
+			@RequestParam(required = false) String email,
+			@RequestParam(required = false) String nickname,
 			RedirectAttributes ra) {
 		try {
-			userAdminService.create(username, password, role);
+			userAdminService.create(username, password, role, email, nickname);
 			auditService.record(AuditService.USER_CREATE, username.trim(), "role=" + role);
 			ra.addFlashAttribute("ok", "已创建用户「" + username.trim() + "」");
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());
 			ra.addFlashAttribute("username", username);
 			ra.addFlashAttribute("role", role);
+			ra.addFlashAttribute("email", email);
+			ra.addFlashAttribute("nickname", nickname);
 		}
 		return "redirect:/admin/users";
 	}
@@ -89,11 +93,14 @@ public class AdminUserController {
 			@RequestParam(defaultValue = "ROLE_USER") String role,
 			@RequestParam(defaultValue = "false") boolean enabled,
 			@RequestParam(required = false) String password,
+			@RequestParam(required = false) String email,
+			@RequestParam(required = false) String nickname,
 			RedirectAttributes ra) {
 		try {
-			userAdminService.update(id, role, enabled, password);
+			userAdminService.update(id, role, enabled, password, email, nickname);
 			auditService.record(AuditService.USER_UPDATE, "id=" + id,
-					"role=" + role + ", enabled=" + enabled + ", passwordReset=" + (password != null && !password.isBlank()));
+					"role=" + role + ", enabled=" + enabled
+							+ ", passwordReset=" + (password != null && !password.isBlank()));
 			ra.addFlashAttribute("ok", "已保存");
 		} catch (BusinessException e) {
 			ra.addFlashAttribute("error", e.getMessage());

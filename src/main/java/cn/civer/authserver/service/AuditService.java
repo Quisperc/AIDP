@@ -41,7 +41,8 @@ public class AuditService {
 	public static final String CLIENT_CREATE = "CLIENT_CREATE";
 	public static final String CLIENT_UPDATE = "CLIENT_UPDATE";
 	public static final String CLIENT_DELETE = "CLIENT_DELETE";
-	public static final String PROFILE_UPDATE = "PROFILE_UPDATE";
+	public static final String ACCOUNT_UPDATE = "ACCOUNT_UPDATE";
+	public static final String AUTHZ_REVOKE = "AUTHZ_REVOKE";
 
 	private static final Logger log = LoggerFactory.getLogger(AuditService.class);
 	private static final int MAX_TARGET_LENGTH = 255;

@@ -1,7 +1,7 @@
 # AIDP · 统一认证中心
 
 基于 **Spring Boot 4.0.3 / Spring Authorization Server / Java 22** 的 OIDC 单点登录系统：
-统一登录、统一退出（Back-Channel Logout）、客户端自助注册、用户与账号自助管理。
+统一登录、统一退出（令牌吊销 + RP-Initiated Logout）、客户端自助注册、用户与账号自助管理。
 
 **一个应用、一个 jar、一个域名**：认证中心与管理台在同一个进程里，管理台用服务端渲染的
 Thymeleaf 页面，不引入前端工程与跨域链路。适合「一个主域下挂多个内部系统」的场景。
@@ -39,7 +39,8 @@ Thymeleaf 页面，不引入前端工程与跨域链路。适合「一个主域�
 
 ```bash
 # 1. 数据库（或用你自己的实例）
-docker compose up -d          # postgres:18，映射 5432
+export DB_PASSWORD='<自行设定的强口令>'   # 不设会直接报错，避免弱默认口令
+docker compose up -d          # postgres:18，仅监听 127.0.0.1:5432
 
 # 2. 敏感配置：根目录建 application-secret.yml（已 gitignore）
 cat > application-secret.yml <<'YAML'
@@ -64,7 +65,7 @@ mvn spring-boot:run
 测试：
 
 ```bash
-mvn test      # 30 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、登录限流、分页、审计、模板渲染
+mvn test      # 36 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、登录限流、分页、审计、模板渲染、账号自助、单客户端撤销、PKCE 开关
 ```
 
 演示账号由 `app.bootstrap.seed-demo-users` 控制，**默认关闭**（漏配环境变量时宁可没人能登录，
@@ -79,7 +80,7 @@ mvn test      # 30 个用例：越权、开放重定向、密码不外泄、密�
 │   ├── config/       安全链（SecurityConfig）、OIDC 存储、令牌装配、Flyway、缓存、启动初始化
 │   ├── security/     签名密钥的持久化读写（SigningKeyStore）
 │   ├── controller/   OIDC 端点 + 管理台（AdminUser / AdminClient / AdminProfile）+ 同意页
-│   ├── service/      用户、客户端、全局登出、Back-Channel 推送、登录限流、操作审计
+│   ├── service/      用户、客户端、账号自助、全局登出、登录限流、操作审计
 │   ├── repository/   用户/审计仓储 + 客户端列表投影
 │   └── dto/ entity/ exception/ handler/
 ├── src/main/resources/
@@ -99,7 +100,7 @@ mvn test      # 30 个用例：越权、开放重定向、密码不外泄、密�
 |---|---|
 | [`docs/架构说明.md`](docs/架构说明.md) | 想搞懂链路、多实例、为什么管理台不单独部署 |
 | [`docs/外部系统接入.md`](docs/外部系统接入.md) | **非本仓库的系统**要接进来：怎么取 issuer / discovery / JWKS，任意语言的最小流程 |
-| [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含 Back-Channel Logout 接收端示例） |
+| [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含标准退出与 roles 映射示例） |
 | [`docs/部署与运维.md`](docs/部署与运维.md) | 要发版、改配置、排障、回滚 |
 | [`docs/故障复盘.md`](docs/故障复盘.md) | 遇到 500/403/登出异常，先查这里 |
 | [`deploy/README.md`](deploy/README.md) | 换服务器 / 重装时要核对的前提 |

@@ -4,12 +4,22 @@ import cn.civer.authserver.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByUsername(String username);
+
+	/** 邮箱唯一性校验（库上有唯一索引，这里提前给出可读的错误提示）。 */
+	Optional<User> findByEmail(String email);
+
+	/** 按不可变主体标识定位账号：改密 / 改名 / 撤销授权都走这里，不受改名影响。 */
+	Optional<User> findByPublicId(String publicId);
+
+	/** 存量账号回填 public_id（V3 迁移只加列，UUID 由应用层生成以兼容 H2 与 PostgreSQL）。 */
+	List<User> findByPublicIdIsNull();
 
 	/**
 	 * 统计「指定角色且已启用」的账号数。

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/admin :: head('账号')}"></head>
+
+<body>
+	<header th:replace="~{fragments/admin :: topbar('profile')}"></header>
+
+	<main class="main">
+		<div class="page-head">
+			<div>
+				<h1 class="page-title">账号</h1>
+				<p class="page-desc">维护自己的资料、密码与登录名。管理员与普通用户看到的页面相同。</p>
+			</div>
+			<a class="btn" th:href="@{/account/authorizations}">已授权应用</a>
+		</div>
+
+		<div th:replace="~{fragments/admin :: alerts}"></div>
+
+		<div class="card">
+			<div class="card-head">
+				<span class="card-title">当前登录</span>
+				<span class="badge badge-ok" th:text="${displayName}">admin</span>
+			</div>
+			<div class="card-body">
+				<p class="field-hint" style="margin-top: 0">
+					登录名：<span th:text="${account.username}">admin</span> ·
+					主体标识（sub）：<span class="cell-mono" th:text="${account.publicId}">uuid</span>
+				</p>
+				<p class="field-hint">
+					主体标识永不改变，子系统按它关联账号；改登录名不会影响已有授权关系。
+				</p>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">资料</span></div>
+			<div class="card-body">
+				<form class="form" th:action="@{/account/profile}" method="post">
+					<div class="field">
+						<label class="field-label" for="email">邮箱</label>
+						<input class="input" id="email" name="email" type="email"
+							th:value="${account.email}" placeholder="name@example.com" />
+						<p class="field-hint">
+							仅在应用请求 email 权限时提供。自助填写会标记为「未验证」，
+							已验证状态：<span th:text="${account.emailVerified} ? '是' : '否'">否</span>。
+						</p>
+					</div>
+					<div class="field">
+						<label class="field-label" for="nickname">昵称</label>
+						<input class="input" id="nickname" name="nickname" type="text"
+							th:value="${account.nickname}" th:placeholder="${account.username}" />
+						<p class="field-hint">作为 profile 权限下的 nickname 提供给应用，留空则显示登录名。</p>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">保存资料</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">修改密码</span></div>
+			<div class="card-body">
+				<form class="form" th:action="@{/account/password}" method="post">
+					<div class="field">
+						<label class="field-label" for="currentPassword">原密码</label>
+						<input class="input" id="currentPassword" name="currentPassword" type="password"
+							autocomplete="current-password" required />
+					</div>
+					<div class="field">
+						<label class="field-label" for="newPassword">新密码</label>
+						<input class="input" id="newPassword" name="newPassword" type="password"
+							autocomplete="new-password" required placeholder="至少 8 位" />
+					</div>
+					<div class="field">
+						<label class="field-label" for="confirmPassword">确认新密码</label>
+						<input class="input" id="confirmPassword" name="confirmPassword" type="password"
+							autocomplete="new-password" required />
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">修改并退出</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">修改登录名</span></div>
+			<div class="card-body">
+				<form class="form" th:action="@{/account/username}" method="post">
+					<div class="field">
+						<label class="field-label" for="newUsername">新登录名</label>
+						<input class="input" id="newUsername" name="newUsername" type="text"
+							autocomplete="off" required />
+						<p class="field-hint">仅改变登录时填写的名字；主体标识与子系统的账号关联不变。</p>
+					</div>
+					<div class="field">
+						<label class="field-label" for="renamePassword">原密码</label>
+						<input class="input" id="renamePassword" name="currentPassword" type="password"
+							autocomplete="current-password" required />
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn btn-primary">修改并退出</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-head"><span class="card-title">安全提示</span></div>
+			<div class="card-body">
+				<p class="field-hint" style="margin-top: 0">
+					改密码或改登录名后会吊销全部已签发令牌并要求重新登录，其它子系统的登录状态也会一并失效。
+					修改资料不会触发退出。撤销单个应用的授权请到「已授权应用」页操作。
+				</p>
+			</div>
+		</div>
+	</main>
+
+	<footer class="footer">AIDP 统一身份认证</footer>
+</body>
+
+</html>

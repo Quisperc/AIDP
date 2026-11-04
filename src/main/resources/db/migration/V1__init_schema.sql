@@ -5,7 +5,8 @@
 --   - spring.jpa.hibernate.ddl-auto=update（users 表）
 -- 两者并存时改表极易漏掉一处，现统一由 Flyway 管理。
 --
--- 已存在的库会因 baseline-on-migrate 跳过本迁移（表早已建好），不会重复执行。
+-- 版本由 flyway_schema_history 精确记录，重复启动不会重复执行；
+-- 不再为「有表但无迁移历史」的旧库打基线（Dev 阶段所有库都由 Flyway 从零管理）。
 
 CREATE TABLE IF NOT EXISTS oauth2_registered_client (
     id varchar(100) NOT NULL,

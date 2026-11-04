@@ -47,7 +47,8 @@ public record AuditView(
 			case "CLIENT_CREATE" -> "注册客户端";
 			case "CLIENT_UPDATE" -> "修改客户端";
 			case "CLIENT_DELETE" -> "删除客户端";
-			case "PROFILE_UPDATE" -> "修改本人账号";
+			case "ACCOUNT_UPDATE" -> "修改账号资料";
+			case "AUTHZ_REVOKE" -> "撤销应用授权";
 			default -> action;
 		};
 	}

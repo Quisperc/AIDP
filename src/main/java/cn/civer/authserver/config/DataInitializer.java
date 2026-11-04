@@ -10,12 +10,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+import java.util.UUID;
+
 /**
- * 启动时的最小初始化：空库且显式开启时，才写入演示账号。
+ * 启动时的最小初始化：回填稳定主体标识 + 空库时按需写入演示账号。
  *
- * 默认 **关闭**。默认开启的风险不对称：万一某台新机器漏配环境变量，就会带着
- * admin/password 上线；而默认关闭最多让管理员打不开登录页，属于立刻能被发现的故障。
- * 本地开发在 application-secret.yml 里设 app.bootstrap.seed-demo-users=true 即可。
+ * 回填放在最前面且不依赖任何开关：V3 只负责加列，UUID 由应用层生成，
+ * 这样同一份迁移脚本在 PostgreSQL 与 H2(MODE=PostgreSQL) 上都能跑。
+ * 不回填的话，存量账号的 public_id 为空，OIDC sub 会退化成 null。
+ *
+ * 演示账号默认 **关闭**。默认开启的风险不对称：万一某台新机器漏配环境变量，
+ * 就会带着 admin/password 上线；而默认关闭最多让管理员打不开登录页，立刻能发现。
  *
  * 客户端（子系统）不再由代码预置 —— 管理台并入本应用后，第一个管理员登录后
  * 直接走 /admin/clients 注册即可。
@@ -35,6 +41,8 @@ public class DataInitializer {
 	@Bean
 	public CommandLineRunner initData(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		return args -> {
+			backfillPublicIds(userRepository);
+
 			if (userRepository.count() > 0) {
 				return;
 			}
@@ -50,5 +58,15 @@ public class DataInitializer {
 			log.warn("[bootstrap] 已创建默认演示账号 admin / user，口令取自 app.bootstrap.demo-user-password。"
 					+ "生产环境请立即改密，或设置 app.bootstrap.seed-demo-users=false 关闭该行为。");
 		};
+	}
+
+	private void backfillPublicIds(UserRepository userRepository) {
+		List<User> missing = userRepository.findByPublicIdIsNull();
+		if (missing.isEmpty()) {
+			return;
+		}
+		missing.forEach(user -> user.setPublicId(UUID.randomUUID().toString()));
+		userRepository.saveAll(missing);
+		log.info("[bootstrap] 已为 {} 个存量账号回填 public_id", missing.size());
 	}
 }

@@ -60,7 +60,7 @@
 						<textarea class="textarea" id="redirectUri" name="redirectUri" rows="3"
 							placeholder="https://app.example.com/login/oauth2/code/oidc-client"
 							th:text="${client != null ? client.redirectUri : form?.redirectUri}"></textarea>
-						<p class="field-hint">一行一条；同一客户端可配置多条回调（如不同环境或不同回调参数）。</p>
+						<p class="field-hint">多个地址用英文逗号分隔；同一客户端可配置多条回调（如不同环境或不同回调参数）。</p>
 					</div>
 
 					<div class="field">
@@ -68,17 +68,19 @@
 						<input class="input" id="postLogoutRedirectUri" name="postLogoutRedirectUri" type="text"
 							th:value="${client != null ? client.postLogoutRedirectUri : form?.postLogoutRedirectUri}"
 							placeholder="https://app.example.com/login" />
-						<p class="field-hint">退出后允许回跳的地址（RP-Initiated Logout 的 post_logout_redirect_uri 必须命中它）。
-							后端登出广播的地址不取这里，而是由上面的 Redirect URI 的 host 决定。</p>
+						<p class="field-hint">退出后允许回跳的地址（RP-Initiated Logout 的
+							post_logout_redirect_uri 必须逐字符命中它，由框架精确校验）。</p>
 					</div>
 
 					<div class="field">
-						<label class="check">
-							<input type="checkbox" name="requirePkce" value="true"
-								th:checked="${client != null ? client.requirePkce : (form != null ? form.requirePkce : true)}" />
-							<span>要求 PKCE</span>
-						</label>
-						<p class="field-hint">建议保持开启。仅在对接确实不支持 PKCE 的老系统时才关闭。</p>
+						<label class="field-label" for="requirePkce">要求 PKCE</label>
+						<select class="select" id="requirePkce" name="requirePkce">
+							<option value="true"
+								th:selected="${client != null ? client.requirePkce : (form == null or form.requirePkce == null or form.requirePkce)}">是（推荐，公网应用不要关）</option>
+							<option value="false"
+								th:selected="${client != null ? !client.requirePkce : (form != null and form.requirePkce != null and !form.requirePkce)}">否（仅用于不支持 PKCE 的老系统）</option>
+						</select>
+						<p class="field-hint">显式提交 true / false，避免复选框「未勾选就不提交」让保存操作静默关掉 PKCE。</p>
 					</div>
 
 					<div class="form-actions">

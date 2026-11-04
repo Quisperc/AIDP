@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <!-- 管理台公共片段：<head> 与顶栏。三张页面共用，改导航只改这里。 -->
 <head th:fragment="head(title)">
@@ -13,25 +14,25 @@
 <body>
 
 	<header th:fragment="topbar(active)" class="topbar">
-		<a class="brand" th:href="@{/admin/users}">
+		<a class="brand" th:href="@{/account}">
 			<span class="brand-mark" aria-hidden="true">A</span>
 			<span>AIDP</span>
-			<span class="brand-sub">统一身份认证 · 管理台</span>
+			<span class="brand-sub">统一身份认证</span>
 		</a>
 
 		<nav class="nav" aria-label="主导航">
-			<a class="nav-link" th:href="@{/admin/users}"
+			<a class="nav-link" sec:authorize="hasAuthority('ROLE_ADMIN')" th:href="@{/admin/users}"
 				th:classappend="${active == 'users'} ? 'is-active'">用户</a>
-			<a class="nav-link" th:href="@{/admin/clients}"
+			<a class="nav-link" sec:authorize="hasAuthority('ROLE_ADMIN')" th:href="@{/admin/clients}"
 				th:classappend="${active == 'clients'} ? 'is-active'">客户端</a>
-			<a class="nav-link" th:href="@{/admin/audit}"
+			<a class="nav-link" sec:authorize="hasAuthority('ROLE_ADMIN')" th:href="@{/admin/audit}"
 				th:classappend="${active == 'audit'} ? 'is-active'">审计</a>
-			<a class="nav-link" th:href="@{/admin/profile}"
+			<a class="nav-link" th:href="@{/account}"
 				th:classappend="${active == 'profile'} ? 'is-active'">账号</a>
 		</nav>
 
 		<div class="topbar-user">
-			<span class="user-name" th:text="${#authentication.name}">admin</span>
+			<span class="user-name" th:text="${displayName}">admin</span>
 			<form th:action="@{/logout}" method="post">
 				<button type="submit" class="btn btn-link">退出</button>
 			</form>

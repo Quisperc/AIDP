@@ -17,11 +17,14 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 /**
- * 用户管理业务逻辑。
+ * 用户管理业务逻辑（仅管理台，ROLE_ADMIN 由 URL 规则保证）。
  *
  * 入参一律用字符串/布尔，不再接收 {@link User} 实体：
  * 实体作为请求体时，「字段没传」和「传了默认值」区分不开（enabled 曾因此在
  * 只改角色时把停用用户重新启用）。表单语义下由调用方显式给出每个字段更准确。
+ *
+ * 账号自助（改自己的资料/密码/登录名/撤销授权）在 AccountService：
+ * 那条路径要求原密码校验与强制登出，和「管理员改别人」的规则完全不同，不共用方法。
  */
 @Service
 public class UserAdminService {
@@ -58,7 +61,8 @@ public class UserAdminService {
 	}
 
 	@Transactional
-	public UserResponse create(String rawUsername, String rawPassword, String role) {
+	public UserResponse create(String rawUsername, String rawPassword, String role,
+			String email, String nickname) {
 		if (!StringUtils.hasText(rawUsername) || !StringUtils.hasText(rawPassword)) {
 			throw BusinessException.badRequest("用户名与密码均不能为空。");
 		}
@@ -66,22 +70,34 @@ public class UserAdminService {
 		if (userRepository.findByUsername(username).isPresent()) {
 			throw BusinessException.conflict("用户名已被使用: " + username);
 		}
+		String newEmail = normalize(email);
+		if (newEmail != null) {
+			if (userRepository.findByEmail(newEmail).isPresent()) {
+				throw BusinessException.conflict("该邮箱已被其他账号使用。");
+			}
+		}
 		User user = new User();
 		user.setUsername(username);
 		user.setPassword(passwordEncoder.encode(rawPassword));
 		user.setRole(StringUtils.hasText(role) ? role : DEFAULT_ROLE);
 		user.setEnabled(true);
+		user.setEmail(newEmail);
+		user.setNickname(normalize(nickname));
+		// 管理员录入的邮箱视为可信来源；用户自助填写的邮箱由 AccountService 标为未验证
+		user.setEmailVerified(newEmail != null);
 		log.info("[users] created: username={}", username);
 		return UserResponse.from(userRepository.save(user));
 	}
 
 	/**
-	 * 更新角色、启用状态，可选重置密码。
+	 * 更新角色、启用状态、资料，可选重置密码。
 	 *
 	 * @param newPassword 为空表示不修改
+	 * @param email       为空表示清空邮箱；填写时视为管理员录入（已验证）
 	 */
 	@Transactional
-	public UserResponse update(Long id, String role, boolean enabled, String newPassword) {
+	public UserResponse update(Long id, String role, boolean enabled, String newPassword,
+			String email, String nickname) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> BusinessException.notFound("用户不存在: " + id));
 		String targetRole = StringUtils.hasText(role) ? role : user.getRole();
@@ -91,6 +107,22 @@ public class UserAdminService {
 		if (StringUtils.hasText(newPassword)) {
 			user.setPassword(passwordEncoder.encode(newPassword));
 		}
+		String newEmail = normalize(email);
+		if (newEmail != null) {
+			userRepository.findByEmail(newEmail)
+					.filter(other -> !other.getId().equals(user.getId()))
+					.ifPresent(other -> {
+						throw BusinessException.conflict("该邮箱已被其他账号使用。");
+					});
+			if (!newEmail.equals(user.getEmail())) {
+				user.setEmail(newEmail);
+				user.setEmailVerified(true);
+			}
+		} else {
+			user.setEmail(null);
+			user.setEmailVerified(false);
+		}
+		user.setNickname(normalize(nickname));
 		log.info("[users] updated: id={}, role={}, enabled={}", id, targetRole, enabled);
 		return UserResponse.from(userRepository.save(user));
 	}
@@ -126,29 +158,7 @@ public class UserAdminService {
 		}
 	}
 
-	/**
-	 * 修改当前登录者自己的账号。
-	 *
-	 * 改完由调用方立即吊销令牌并清会话（{@link SsoLogoutService#performGlobalLogout}），
-	 * 否则旧用户名在其它系统的会话里仍然有效。
-	 */
-	@Transactional
-	public UserResponse updateSelf(String currentUsername, String newUsername, String newPassword) {
-		User user = userRepository.findByUsername(currentUsername)
-				.orElseThrow(() -> BusinessException.notFound("当前用户不存在: " + currentUsername));
-		if (StringUtils.hasText(newUsername) && !newUsername.trim().equals(currentUsername)) {
-			String target = newUsername.trim();
-			userRepository.findByUsername(target)
-					.filter(other -> !other.getId().equals(user.getId()))
-					.ifPresent(other -> {
-						throw BusinessException.conflict("用户名已被使用: " + target);
-					});
-			user.setUsername(target);
-		}
-		if (StringUtils.hasText(newPassword)) {
-			user.setPassword(passwordEncoder.encode(newPassword));
-		}
-		log.info("[users] self-updated: username={}", currentUsername);
-		return UserResponse.from(userRepository.save(user));
+	private static String normalize(String value) {
+		return StringUtils.hasText(value) ? value.trim() : null;
 	}
 }

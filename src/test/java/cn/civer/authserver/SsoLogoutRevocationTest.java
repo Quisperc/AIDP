@@ -35,9 +35,6 @@ class SsoLogoutRevocationTest {
 	@Transactional
 	@DisplayName("全局登出删除该主体的 authorization 与 consent，且不影响其他用户")
 	void globalLogoutRevokesAuthorizations() {
-		// 清空客户端注册表，避免用例真的向外部地址发 Back-Channel 广播（事务内删除，结束回滚）
-		jdbcTemplate.update("DELETE FROM oauth2_registered_client");
-
 		insertAuthorization("auth-revoke", PRINCIPAL);
 		insertConsent(PRINCIPAL);
 		insertAuthorization("auth-keep", BYSTANDER);

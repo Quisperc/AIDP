@@ -43,18 +43,15 @@ public class ClientService {
 	private final RegisteredClientRepository registeredClientRepository;
 	private final ClientQueryRepository clientQueryRepository;
 	private final PasswordEncoder passwordEncoder;
-	private final SsoLogoutService ssoLogoutService;
 	private final Duration accessTokenTtl;
 
 	public ClientService(RegisteredClientRepository registeredClientRepository,
 			ClientQueryRepository clientQueryRepository,
 			PasswordEncoder passwordEncoder,
-			SsoLogoutService ssoLogoutService,
 			@Value("${app.auth.access-token-time-to-live:30m}") Duration accessTokenTtl) {
 		this.registeredClientRepository = registeredClientRepository;
 		this.clientQueryRepository = clientQueryRepository;
 		this.passwordEncoder = passwordEncoder;
-		this.ssoLogoutService = ssoLogoutService;
 		this.accessTokenTtl = accessTokenTtl;
 	}
 
@@ -95,7 +92,6 @@ public class ClientService {
 		}
 		registeredClientRepository.save(builder.build());
 
-		onClientChanged();
 		log.info("[clients] registered: clientId={}", dto.clientId());
 	}
 
@@ -133,7 +129,6 @@ public class ClientService {
 				.forEach(builder::postLogoutRedirectUri);
 
 		registeredClientRepository.save(builder.build());
-		onClientChanged();
 		log.info("[clients] updated: clientId={}", clientId);
 	}
 
@@ -144,15 +139,7 @@ public class ClientService {
 			throw BusinessException.notFound("客户端不存在: " + clientId);
 		}
 		clientQueryRepository.deleteCascade(client.getId());
-		onClientChanged();
 		log.info("[clients] deleted: clientId={}", clientId);
-	}
-
-	/**
-	 * redirect_uris 变了，登出跳转的 host 白名单缓存需立即失效。
-	 */
-	private void onClientChanged() {
-		ssoLogoutService.invalidateHostCache();
 	}
 
 	/** 注册与更新共用的骨架：认证方式、授权类型、scope、有效期。 */
@@ -166,7 +153,8 @@ public class ClientService {
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
 				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
 				.scope(OidcScopes.OPENID)
-				.scope(OidcScopes.PROFILE);
+				.scope(OidcScopes.PROFILE)
+				.scope(OidcScopes.EMAIL);
 	}
 
 	/**
@@ -195,7 +183,7 @@ public class ClientService {
 				client.getClientId(),
 				client.getClientName(),
 				client.getRedirectUris() != null && !client.getRedirectUris().isEmpty()
-						? String.join("\n", client.getRedirectUris())
+						? String.join(",", client.getRedirectUris())
 						: "",
 				client.getPostLogoutRedirectUris() != null && !client.getPostLogoutRedirectUris().isEmpty()
 						? client.getPostLogoutRedirectUris().iterator().next()
@@ -203,12 +191,12 @@ public class ClientService {
 				client.getClientSettings().isRequireProofKey());
 	}
 
-	/** 解析 redirectUri 文本为列表，支持换行或逗号分隔（与 OAuth2 请求里的值必须完全一致，含查询参数） */
+	/** 解析逗号分隔的 redirect_uris（与框架入库格式一致；与 OAuth2 请求值必须逐字符一致） */
 	private static List<String> parseRedirectUris(String value) {
 		if (value == null || value.isBlank()) {
 			return List.of();
 		}
-		return Arrays.stream(value.split("[\\n,\\r]+"))
+		return Arrays.stream(value.split(","))
 				.map(String::trim)
 				.filter(s -> !s.isEmpty())
 				.toList();
