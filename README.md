@@ -101,6 +101,7 @@ mvn test      # 44 个用例：越权、开放重定向、密码不外泄、密�
 | [`docs/外部系统接入.md`](docs/外部系统接入.md) | **非本仓库的系统**要接进来：怎么取 issuer / discovery / JWKS，任意语言的最小流程 |
 | [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含标准退出与 roles 映射示例） |
 | [`docs/部署与运维.md`](docs/部署与运维.md) | 要发版、选部署方式、排障、回滚 |
+| [`docs/生产部署SOP.md`](docs/生产部署SOP.md) | **从零装一台生产机**：建库/Redis、systemd、Docker、首个管理员、验收、升级与回滚 |
 | [`docs/配置参考.md`](docs/配置参考.md) | 全部环境变量 / 默认值 / 优先级、无 Redis 单机跑、配置错误排查 |
 | [`docs/故障复盘.md`](docs/故障复盘.md) | 遇到 500/403/登出异常，先查这里 |
 | [`deploy/README.md`](deploy/README.md) | 换服务器 / 重装时要核对的前提 |

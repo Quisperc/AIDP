@@ -1,6 +1,8 @@
 # 服务器侧约定（流水线依赖）
 
 > 本文件描述 **CI 发布链路假设服务器上已经存在的东西**。
+> 从零搭建一台生产机的完整操作步骤见 [`../docs/生产部署SOP.md`](../docs/生产部署SOP.md)；
+> 本文件只负责「流水线会碰到的那些路径与变量」。
 > 这些文件不放在仓库里（含真实密钥与 1Panel 运行时配置），
 > 但流水线强依赖它们，换机器/重装时必须逐项核对，否则发布会在最后一步失败。
 
@@ -49,9 +51,10 @@ docker inspect -f '{{.State.StartedAt}}' idp_auth_server
 ## 三、容器内必须存在的环境变量
 
 写在 `/opt/1panel/runtime/java/idp_auth_server/.env`（`run.sh` 会 source 它）。
-**这是唯一的配置来源**：应用不加载任何外部配置文件（`spring.config.import` 已于
+**这是唯一的配置来源**：应用不引入任何自定义外部配置（`spring.config.import` 已于
 2026-11-04 移除，`/home/idp/auth_server/application-secret.yml` 已改名为
-`.disabled-*`）。历史上正是这个外部文件的优先级高于 jar 内配置、且盖过 `DB_URL`
+`.disabled-*`）。注意工作目录下的 `application.yml` 仍会被 Boot 默认加载，别放。
+历史上正是那个外部文件的优先级高于 jar 内配置、且盖过 `DB_URL`
 环境变量，静默改写了数据源，才导致那次故障。
 完整变量表见 `docs/配置参考.md`。
 
