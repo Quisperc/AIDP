@@ -78,7 +78,7 @@ sudo install -m 600 /dev/null /etc/aidp/aidp.env
 在**构建机**（不是服务器，服务器不必装 Maven）执行：
 
 ```bash
-mvn clean package                     # 含 44 个回归测试，测试不过不会产出 jar
+mvn clean package                     # 含 53 个回归测试，测试不过不会产出 jar
 ls -lh target/*.jar                   # 取可执行 jar（忽略 *.jar.original）
 sha256sum target/*.jar
 ```

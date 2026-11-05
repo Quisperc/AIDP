@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * 账号自助：当前登录者维护自己的资料、凭据、登录名与已授权应用。
@@ -31,7 +30,6 @@ import java.util.regex.Pattern;
 @Service
 public class AccountService {
 
-	private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 	private static final int MIN_PASSWORD_LENGTH = 8;
 
 	private final UserRepository userRepository;
@@ -63,12 +61,10 @@ public class AccountService {
 	@Transactional
 	public void updateProfile(String principalName, String email, String nickname) {
 		User user = require(principalName);
-		String newEmail = normalize(email);
+		String newEmail = EmailPolicy.normalize(email);
 		if (newEmail != null) {
-			if (!EMAIL_PATTERN.matcher(newEmail).matches()) {
-				throw BusinessException.badRequest("邮箱格式不正确。");
-			}
-			userRepository.findByEmail(newEmail)
+			EmailPolicy.requireValid(newEmail);
+			userRepository.findByEmailIgnoreCase(newEmail)
 					.filter(other -> !other.getId().equals(user.getId()))
 					.ifPresent(other -> {
 						throw BusinessException.conflict("该邮箱已被其他账号使用。");

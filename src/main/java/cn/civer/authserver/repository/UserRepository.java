@@ -12,8 +12,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByUsername(String username);
 
-	/** 邮箱唯一性校验（库上有唯一索引，这里提前给出可读的错误提示）。 */
-	Optional<User> findByEmail(String email);
+	/**
+	 * 邮箱唯一性校验：忽略大小写。写入已由 EmailPolicy 统一归一化为小写，
+	 * 这里再兜一层，保证 V4 之前残留的大写邮箱也能被识别为「已占用」，
+	 * 避免同一个邮箱因大小写不同被登记到两个账号上（库上另有精确唯一索引兜底）。
+	 */
+	Optional<User> findByEmailIgnoreCase(String email);
 
 	/** 存量账号回填 public_id（V3 迁移只加列，UUID 由应用层生成以兼容 H2 与 PostgreSQL）。 */
 	List<User> findByPublicIdIsNull();

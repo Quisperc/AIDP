@@ -63,7 +63,7 @@ mvn spring-boot:run
 测试：
 
 ```bash
-mvn test      # 44 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、登录限流、分页、审计、模板渲染、账号自助、单客户端撤销、PKCE 开关、完整授权同意链路、ID Token 的 sub 与条件 claim
+mvn test      # 53 个用例：越权、开放重定向、密码不外泄、密钥持久化、登出吊销、登录限流、分页、审计、模板渲染、账号自助、单客户端撤销、PKCE 开关、完整授权同意链路、ID Token 的 sub 与条件 claim、邮箱归一化与标准格式校验、V4 数据迁移
 ```
 
 演示账号由 `app.bootstrap.seed-demo-users` 控制，**默认关闭**（漏配环境变量时宁可没人能登录，
@@ -83,7 +83,7 @@ mvn test      # 44 个用例：越权、开放重定向、密码不外泄、密�
 │   ├── repository/   用户/审计仓储 + 客户端与授权记录投影
 │   └── dto/ entity/ exception/ handler/
 ├── src/main/resources/
-│   ├── db/migration/ Flyway 迁移（V1 基础表 / V2 审计表 / V3 账号资料与稳定 sub）
+│   ├── db/migration/ Flyway 迁移（V1 基础表 / V2 审计表 / V3 账号资料与稳定 sub / V4 邮箱大小写规整）
 │   ├── templates/    认证页 + admin/（管理台）+ account/（账号自助）+ fragments/
 │   └── static/css/   tokens / hig / admin
 ├── deploy/           服务器侧目录、端口、环境变量约定
@@ -99,7 +99,8 @@ mvn test      # 44 个用例：越权、开放重定向、密码不外泄、密�
 |---|---|
 | [`docs/架构说明.md`](docs/架构说明.md) | 想搞懂链路、Redis 会话、为什么管理台不单独部署 |
 | [`docs/外部系统接入.md`](docs/外部系统接入.md) | **非本仓库的系统**要接进来：怎么取 issuer / discovery / JWKS，任意语言的最小流程 |
-| [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含标准退出与 roles 映射示例） |
+| [`docs/接入规范.md`](docs/接入规范.md) | Spring Boot 子系统接入（含标准退出、roles 映射与 email claim 使用约束） |
+| [`docs/邮箱验证方案评估.md`](docs/邮箱验证方案评估.md) | 为何不引入邮件发送 / 邮箱验证，重开条件与标准规范预案 |
 | [`docs/部署与运维.md`](docs/部署与运维.md) | 要发版、选部署方式、排障、回滚 |
 | [`docs/生产部署SOP.md`](docs/生产部署SOP.md) | **从零装一台生产机**：建库/Redis、systemd、Docker、首个管理员、验收、升级与回滚 |
 | [`docs/配置参考.md`](docs/配置参考.md) | 全部环境变量 / 默认值 / 优先级、无 Redis 单机跑、配置错误排查 |

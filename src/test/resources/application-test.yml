@@ -17,7 +17,7 @@ spring:
     username: sa
     password: ""
   # 测试也走 Flyway：迁移脚本同时兼容 PostgreSQL 与 H2（MODE=PostgreSQL），
-  # 这样每个集成测试都会真实验证一遍 V1/V2/V3，而不是只在上生产库时才发现问题。
+  # 这样每个集成测试都会真实验证一遍 V1~V4，而不是只在上生产库时才发现问题。
   flyway:
     enabled: true
     locations: classpath:db/migration

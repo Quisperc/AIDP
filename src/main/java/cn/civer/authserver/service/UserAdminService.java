@@ -70,9 +70,11 @@ public class UserAdminService {
 		if (userRepository.findByUsername(username).isPresent()) {
 			throw BusinessException.conflict("用户名已被使用: " + username);
 		}
-		String newEmail = normalize(email);
+		String newEmail = EmailPolicy.normalize(email);
 		if (newEmail != null) {
-			if (userRepository.findByEmail(newEmail).isPresent()) {
+			// 管理台此前只查重、不校验格式，脏邮箱会直接进 email claim；两条写入路径统一在这里兜住
+			EmailPolicy.requireValid(newEmail);
+			if (userRepository.findByEmailIgnoreCase(newEmail).isPresent()) {
 				throw BusinessException.conflict("该邮箱已被其他账号使用。");
 			}
 		}
@@ -107,9 +109,10 @@ public class UserAdminService {
 		if (StringUtils.hasText(newPassword)) {
 			user.setPassword(passwordEncoder.encode(newPassword));
 		}
-		String newEmail = normalize(email);
+		String newEmail = EmailPolicy.normalize(email);
 		if (newEmail != null) {
-			userRepository.findByEmail(newEmail)
+			EmailPolicy.requireValid(newEmail);
+			userRepository.findByEmailIgnoreCase(newEmail)
 					.filter(other -> !other.getId().equals(user.getId()))
 					.ifPresent(other -> {
 						throw BusinessException.conflict("该邮箱已被其他账号使用。");
